@@ -1,0 +1,188 @@
+# Execution, defence-evasion and discovery rules
+rules:
+  - id: EXEC-001
+    title: Encoded PowerShell command
+    description: PowerShell launched with -EncodedCommand / -enc and a Base64 payload — the standard way to hide a script.
+    kind: match
+    severity: high
+    score: 55
+    techniques: [T1059.001, T1027.010]
+    phase: execution
+    group_by: [host]
+    where:
+      event_type: process_start
+      process_name: { in: [powershell.exe, pwsh.exe, powershell_ise.exe] }
+      command_line: { regex: "(?i)(^|\\s)-(e|ec|enc|encodedcommand)\\s+[A-Za-z0-9+/=]{20,}" }
+    confidence: 0.93
+
+  - id: EXEC-002
+    title: Office application spawned a shell
+    description: Word/Excel/Outlook/PowerPoint spawning cmd, PowerShell, wscript or mshta — macro or exploit execution.
+    kind: match
+    severity: high
+    score: 55
+    techniques: [T1566.001, T1204.002, T1059]
+    phase: execution
+    group_by: [host]
+    where:
+      event_type: process_start
+      parent_process_name: { in: [winword.exe, excel.exe, outlook.exe, powerpnt.exe, acrord32.exe, onenote.exe] }
+      process_name: { in: [cmd.exe, powershell.exe, pwsh.exe, wscript.exe, cscript.exe, mshta.exe, rundll32.exe, regsvr32.exe, certutil.exe, bitsadmin.exe] }
+    confidence: 0.92
+
+  - id: EXEC-003
+    title: PowerShell download cradle
+    description: PowerShell fetching and executing remote content (IEX + WebClient/Invoke-WebRequest/BitsTransfer).
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1059.001, T1105]
+    phase: execution
+    group_by: [host]
+    where:
+      event_type: process_start
+      process_name: { in: [powershell.exe, pwsh.exe] }
+      command_line: { regex: "(?i)(iex|invoke-expression).*(net\\.webclient|downloadstring|downloadfile|invoke-webrequest|iwr|curl|wget|start-bitstransfer)|(net\\.webclient|downloadstring|invoke-webrequest).*(iex|invoke-expression)" }
+    confidence: 0.9
+
+  - id: EXEC-004
+    title: Living-off-the-land binary fetching a remote URL
+    description: mshta / regsvr32 / rundll32 / certutil / bitsadmin invoked with an http(s) URL.
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1218, T1105]
+    phase: defense_evasion
+    group_by: [host]
+    where:
+      event_type: process_start
+      process_name: { in: [mshta.exe, regsvr32.exe, rundll32.exe, certutil.exe, bitsadmin.exe, wmic.exe] }
+      command_line: { regex: "(?i)https?://" }
+    confidence: 0.9
+
+  - id: EXEC-005
+    title: Execution from user-writable temp location
+    description: Executable launched from Temp / Downloads / AppData\\Local\\Temp / Public folders.
+    kind: match
+    severity: medium
+    score: 30
+    techniques: [T1204.002]
+    phase: execution
+    group_by: [host]
+    where:
+      event_type: process_start
+      file_path: { regex: "(?i)(\\\\temp\\\\|\\\\downloads\\\\|appdata\\\\local\\\\temp|\\\\users\\\\public\\\\|/tmp/|/dev/shm/)" }
+      process_name: { not_in: [msiexec.exe, setup.exe, chrome.exe, msedge.exe, teams.exe, update.exe] }
+    confidence: 0.7
+
+  - id: EXEC-006
+    title: PowerShell execution-policy bypass with hidden window
+    description: -ExecutionPolicy Bypass together with -WindowStyle Hidden / -NoProfile — script running while hiding from the user.
+    kind: match
+    severity: medium
+    score: 40
+    techniques: [T1059.001, T1564.003]
+    phase: execution
+    group_by: [host]
+    where:
+      event_type: process_start
+      process_name: { in: [powershell.exe, pwsh.exe] }
+      command_line: { regex: "(?i)-(ep|exec|executionpolicy)\\s+bypass" }
+      any_of:
+        - command_line: { regex: "(?i)-w(indowstyle)?\\s+hidden" }
+        - command_line: { regex: "(?i)-nop(rofile)?" }
+    confidence: 0.85
+
+  - id: DEFEV-001
+    title: Security tooling disabled
+    description: Windows Defender real-time monitoring disabled or exclusions added; AV service stopped.
+    kind: match
+    severity: critical
+    score: 65
+    techniques: [T1562.001]
+    phase: defense_evasion
+    group_by: [host]
+    where:
+      any_of:
+        - { event_type: process_start, command_line: { regex: "(?i)set-mppreference.*(disablerealtimemonitoring|exclusionpath|disableioavprotection)" } }
+        - { event_type: service_stopped, service_name: { in: [WinDefend, Sense, MsMpSvc, wscsvc, CrowdStrike, SentinelAgent] } }
+        - { event_type: process_start, command_line: { regex: "(?i)(sc\\s+stop\\s+windefend|net\\s+stop\\s+windefend|taskkill.*msmpeng)" } }
+    confidence: 0.95
+
+  - id: DEFEV-002
+    title: Windows event logs cleared
+    description: wevtutil cl / Clear-EventLog — destroying evidence.
+    kind: match
+    severity: critical
+    score: 65
+    techniques: [T1070.001]
+    phase: defense_evasion
+    group_by: [host]
+    where:
+      event_type: process_start
+      command_line: { regex: "(?i)(wevtutil\\s+(cl|clear-log)|clear-eventlog|remove-eventlog)" }
+    confidence: 0.95
+
+  - id: DEFEV-003
+    title: Volume shadow copies deleted
+    description: vssadmin / wmic shadowcopy delete — the ransomware pre-encryption signature.
+    kind: match
+    severity: critical
+    score: 70
+    techniques: [T1490]
+    phase: impact
+    group_by: [host]
+    where:
+      event_type: process_start
+      command_line: { regex: "(?i)(vssadmin.*delete\\s+shadows|wmic.*shadowcopy.*delete|bcdedit.*recoveryenabled\\s+no|wbadmin\\s+delete\\s+catalog)" }
+    confidence: 0.96
+
+  - id: DISC-001
+    title: Host and domain reconnaissance burst
+    description: Four or more distinct discovery commands (whoami, net group, nltest, systeminfo, ipconfig, arp, nslookup, tasklist) within five minutes.
+    kind: threshold
+    severity: medium
+    score: 35
+    techniques: [T1087.002, T1082, T1016, T1018, T1069.002]
+    phase: discovery
+    group_by: [host]
+    window_seconds: 300
+    distinct: command_line
+    count_gte: 4
+    where:
+      event_type: process_start
+      any_of:
+        - process_name: { in: [whoami.exe, systeminfo.exe, nltest.exe, ipconfig.exe, arp.exe, nslookup.exe, tasklist.exe, quser.exe, qwinsta.exe, netstat.exe, dsquery.exe, adfind.exe] }
+        - command_line: { regex: "(?i)^(net|net1)(\\.exe)?\\s+(user|group|localgroup|view|share|accounts)" }
+        - command_line: { regex: "(?i)get-ad(user|computer|group)|get-netuser|get-domaincomputer" }
+    confidence: 0.85
+
+  - id: CRED-001
+    title: Credential dumping attempt
+    description: LSASS memory access / minidump, SAM or NTDS.dit copy, mimikatz or procdump patterns.
+    kind: match
+    severity: critical
+    score: 75
+    techniques: [T1003.001, T1003.002, T1003.003]
+    phase: credential_access
+    group_by: [host]
+    where:
+      any_of:
+        - { event_type: process_start, command_line: { regex: "(?i)(mimikatz|sekurlsa|logonpasswords|lsadump|procdump.*lsass|comsvcs\\.dll.*minidump|rundll32.*minidump)" } }
+        - { event_type: file_read, file_path: { regex: "(?i)(\\\\ntds\\.dit|\\\\system32\\\\config\\\\sam|\\\\lsass\\.dmp)" } }
+        - { event_type: process_start, command_line: { regex: "(?i)(reg(\\.exe)?\\s+save\\s+hklm\\\\(sam|system|security)|ntdsutil.*ifm)" } }
+    confidence: 0.96
+
+  - id: CRED-002
+    title: Kerberoasting / SPN enumeration
+    description: Mass service-ticket requests or SPN enumeration tooling.
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1558.003]
+    phase: credential_access
+    group_by: [host]
+    where:
+      event_type: process_start
+      command_line: { regex: "(?i)(setspn\\s+-[tq]|invoke-kerberoast|rubeus.*kerberoast|getuserspns)" }
+    confidence: 0.9

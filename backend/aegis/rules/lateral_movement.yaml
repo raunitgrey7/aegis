@@ -1,0 +1,106 @@
+# Lateral movement rules
+rules:
+  - id: LAT-001
+    title: One account authenticating to many hosts
+    description: The same account logged on (network/remote) to four or more distinct hosts within fifteen minutes.
+    kind: threshold
+    severity: high
+    score: 50
+    techniques: [T1021, T1078]
+    phase: lateral_movement
+    group_by: [user]
+    window_seconds: 900
+    distinct: host
+    count_gte: 4
+    where:
+      event_type: authentication
+      action: login_success
+      privilege: { in: [network, remote, rdp, winrm, smb, ssh] }
+    confidence: 0.85
+
+  - id: LAT-002
+    title: Remote execution tooling
+    description: PsExec / PAExec / wmic /node / winrs / Invoke-Command / Enter-PSSession / ssh with remote command.
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1021.002, T1021.006, T1047, T1569.002]
+    phase: lateral_movement
+    group_by: [host]
+    where:
+      event_type: process_start
+      any_of:
+        - process_name: { in: [psexec.exe, psexesvc.exe, paexec.exe, winrs.exe, wmic.exe, crackmapexec.exe, smbexec.py, wmiexec.py] }
+        - command_line: { regex: "(?i)(psexec|paexec|wmic.*/node:|invoke-command.*-computername|enter-pssession|new-pssession|winrs\\s+-r:|invoke-wmimethod.*-computername)" }
+    confidence: 0.9
+
+  - id: LAT-003
+    title: Admin-share access across multiple hosts
+    description: SMB connections (445) from one host to three or more distinct internal hosts inside ten minutes.
+    kind: threshold
+    severity: medium
+    score: 40
+    techniques: [T1021.002, T1018]
+    phase: lateral_movement
+    group_by: [host]
+    window_seconds: 600
+    distinct: dst_ip
+    count_gte: 3
+    where:
+      event_type: network_connection
+      dst_port: 445
+      dst_ip: { private: true }
+    cooldown_seconds: 1800
+    confidence: 0.75
+
+  - id: LAT-004
+    title: Workstation-to-workstation RDP
+    description: RDP (3389) or WinRM (5985/5986) initiated from a workstation to another workstation — jump-host bypass.
+    kind: match
+    severity: medium
+    score: 40
+    techniques: [T1021.001, T1021.006]
+    phase: lateral_movement
+    group_by: [host]
+    where:
+      event_type: network_connection
+      dst_port: { in: [3389, 5985, 5986] }
+      host: { startswith: ["WS-", "LT-", "PC-"] }
+      dst_ip: { private: true }
+    confidence: 0.75
+
+  - id: LAT-005
+    title: Internal port scan
+    description: One host touching fifteen or more distinct internal destination ports/hosts within one minute.
+    kind: threshold
+    severity: medium
+    score: 40
+    techniques: [T1046, T1018]
+    phase: discovery
+    group_by: [host]
+    window_seconds: 60
+    distinct: dst_ip
+    count_gte: 15
+    where:
+      event_type: network_connection
+      dst_ip: { private: true }
+      outcome: { in: [failure, blocked, refused] }
+    cooldown_seconds: 1800
+    confidence: 0.85
+
+  - id: LAT-006
+    title: Pass-the-hash style NTLM logon
+    description: Network logon with NTLM from a workstation using a privileged account outside working hours pattern.
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1550.002]
+    phase: lateral_movement
+    group_by: [user]
+    where:
+      event_type: authentication
+      action: login_success
+      privilege: network
+      protocol: ntlm
+      user: { startswith: ["adm-", "da-", "administrator"] }
+    confidence: 0.8

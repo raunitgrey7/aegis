@@ -1,0 +1,94 @@
+# Curated subset of MITRE ATT&CK (Enterprise) used by Aegis. IDs and names follow the public matrix.
+# tactic values map 1:1 onto aegis.schemas.incidents.KillChainPhase
+techniques:
+  - { id: T1078,      name: Valid Accounts,                              tactic: initial_access }
+  - { id: T1078.002,  name: "Valid Accounts: Domain Accounts",            tactic: initial_access }
+  - { id: T1133,      name: External Remote Services,                    tactic: initial_access }
+  - { id: T1566,      name: Phishing,                                    tactic: initial_access }
+  - { id: T1566.001,  name: "Phishing: Spearphishing Attachment",         tactic: initial_access }
+  - { id: T1566.002,  name: "Phishing: Spearphishing Link",               tactic: initial_access }
+  - { id: T1190,      name: Exploit Public-Facing Application,           tactic: initial_access }
+
+  - { id: T1059,      name: Command and Scripting Interpreter,           tactic: execution }
+  - { id: T1059.001,  name: "Command and Scripting Interpreter: PowerShell", tactic: execution }
+  - { id: T1059.003,  name: "Command and Scripting Interpreter: Windows Command Shell", tactic: execution }
+  - { id: T1059.005,  name: "Command and Scripting Interpreter: Visual Basic", tactic: execution }
+  - { id: T1204,      name: User Execution,                              tactic: execution }
+  - { id: T1204.002,  name: "User Execution: Malicious File",             tactic: execution }
+  - { id: T1047,      name: Windows Management Instrumentation,          tactic: execution }
+  - { id: T1569.002,  name: "System Services: Service Execution",         tactic: execution }
+
+  - { id: T1053.003,  name: "Scheduled Task/Job: Cron",                   tactic: persistence }
+  - { id: T1053.005,  name: "Scheduled Task/Job: Scheduled Task",         tactic: persistence }
+  - { id: T1543.002,  name: "Create or Modify System Process: Systemd Service", tactic: persistence }
+  - { id: T1543.003,  name: "Create or Modify System Process: Windows Service", tactic: persistence }
+  - { id: T1547.001,  name: "Boot or Logon Autostart Execution: Registry Run Keys", tactic: persistence }
+  - { id: T1136.001,  name: "Create Account: Local Account",              tactic: persistence }
+  - { id: T1098,      name: Account Manipulation,                        tactic: persistence }
+  - { id: T1098.004,  name: "Account Manipulation: SSH Authorized Keys",  tactic: persistence }
+  - { id: T1546.003,  name: "Event Triggered Execution: WMI Event Subscription", tactic: persistence }
+
+  - { id: T1068,      name: Exploitation for Privilege Escalation,       tactic: privilege_escalation }
+  - { id: T1548.001,  name: "Abuse Elevation Control Mechanism: Setuid and Setgid", tactic: privilege_escalation }
+  - { id: T1548.002,  name: "Abuse Elevation Control Mechanism: Bypass UAC", tactic: privilege_escalation }
+  - { id: T1548.003,  name: "Abuse Elevation Control Mechanism: Sudo and Sudo Caching", tactic: privilege_escalation }
+
+  - { id: T1027,      name: Obfuscated Files or Information,             tactic: defense_evasion }
+  - { id: T1027.010,  name: "Obfuscated Files or Information: Command Obfuscation", tactic: defense_evasion }
+  - { id: T1218,      name: System Binary Proxy Execution,               tactic: defense_evasion }
+  - { id: T1218.005,  name: "System Binary Proxy Execution: Mshta",       tactic: defense_evasion }
+  - { id: T1218.010,  name: "System Binary Proxy Execution: Regsvr32",    tactic: defense_evasion }
+  - { id: T1218.011,  name: "System Binary Proxy Execution: Rundll32",    tactic: defense_evasion }
+  - { id: T1562.001,  name: "Impair Defenses: Disable or Modify Tools",   tactic: defense_evasion }
+  - { id: T1070.001,  name: "Indicator Removal: Clear Windows Event Logs", tactic: defense_evasion }
+  - { id: T1564.003,  name: "Hide Artifacts: Hidden Window",              tactic: defense_evasion }
+  - { id: T1550.002,  name: "Use Alternate Authentication Material: Pass the Hash", tactic: lateral_movement }
+
+  - { id: T1110,      name: Brute Force,                                 tactic: credential_access }
+  - { id: T1110.001,  name: "Brute Force: Password Guessing",             tactic: credential_access }
+  - { id: T1110.003,  name: "Brute Force: Password Spraying",             tactic: credential_access }
+  - { id: T1003.001,  name: "OS Credential Dumping: LSASS Memory",        tactic: credential_access }
+  - { id: T1003.002,  name: "OS Credential Dumping: Security Account Manager", tactic: credential_access }
+  - { id: T1003.003,  name: "OS Credential Dumping: NTDS",                tactic: credential_access }
+  - { id: T1552.001,  name: "Unsecured Credentials: Credentials In Files", tactic: credential_access }
+  - { id: T1552.004,  name: "Unsecured Credentials: Private Keys",        tactic: credential_access }
+  - { id: T1555.003,  name: "Credentials from Password Stores: Credentials from Web Browsers", tactic: credential_access }
+  - { id: T1558.003,  name: "Steal or Forge Kerberos Tickets: Kerberoasting", tactic: credential_access }
+
+  - { id: T1087,      name: Account Discovery,                           tactic: discovery }
+  - { id: T1087.002,  name: "Account Discovery: Domain Account",          tactic: discovery }
+  - { id: T1082,      name: System Information Discovery,                tactic: discovery }
+  - { id: T1016,      name: System Network Configuration Discovery,      tactic: discovery }
+  - { id: T1018,      name: Remote System Discovery,                     tactic: discovery }
+  - { id: T1069.002,  name: "Permission Groups Discovery: Domain Groups", tactic: discovery }
+  - { id: T1046,      name: Network Service Discovery,                   tactic: discovery }
+
+  - { id: T1021,      name: Remote Services,                             tactic: lateral_movement }
+  - { id: T1021.001,  name: "Remote Services: Remote Desktop Protocol",   tactic: lateral_movement }
+  - { id: T1021.002,  name: "Remote Services: SMB/Windows Admin Shares",  tactic: lateral_movement }
+  - { id: T1021.006,  name: "Remote Services: Windows Remote Management", tactic: lateral_movement }
+  - { id: T1570,      name: Lateral Tool Transfer,                       tactic: lateral_movement }
+
+  - { id: T1560.001,  name: "Archive Collected Data: Archive via Utility", tactic: collection }
+  - { id: T1074.001,  name: "Data Staged: Local Data Staging",            tactic: collection }
+  - { id: T1005,      name: Data from Local System,                      tactic: collection }
+  - { id: T1039,      name: Data from Network Shared Drive,              tactic: collection }
+
+  - { id: T1071,      name: Application Layer Protocol,                  tactic: command_and_control }
+  - { id: T1071.001,  name: "Application Layer Protocol: Web Protocols",  tactic: command_and_control }
+  - { id: T1071.004,  name: "Application Layer Protocol: DNS",            tactic: command_and_control }
+  - { id: T1568,      name: Dynamic Resolution,                          tactic: command_and_control }
+  - { id: T1568.002,  name: "Dynamic Resolution: Domain Generation Algorithms", tactic: command_and_control }
+  - { id: T1573,      name: Encrypted Channel,                           tactic: command_and_control }
+  - { id: T1571,      name: Non-Standard Port,                           tactic: command_and_control }
+  - { id: T1105,      name: Ingress Tool Transfer,                       tactic: command_and_control }
+
+  - { id: T1041,      name: Exfiltration Over C2 Channel,                tactic: exfiltration }
+  - { id: T1048,      name: Exfiltration Over Alternative Protocol,      tactic: exfiltration }
+  - { id: T1048.003,  name: "Exfiltration Over Alternative Protocol: Unencrypted Non-C2 Protocol", tactic: exfiltration }
+  - { id: T1567.002,  name: "Exfiltration Over Web Service: Exfiltration to Cloud Storage", tactic: exfiltration }
+  - { id: T1030,      name: Data Transfer Size Limits,                   tactic: exfiltration }
+
+  - { id: T1486,      name: Data Encrypted for Impact,                   tactic: impact }
+  - { id: T1490,      name: Inhibit System Recovery,                     tactic: impact }
+  - { id: T1489,      name: Service Stop,                                tactic: impact }

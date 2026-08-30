@@ -1,0 +1,152 @@
+# Persistence and privilege-escalation rules
+rules:
+  - id: PRIV-001
+    title: Privilege escalated to administrator / SYSTEM
+    description: A session's privilege level changed to an administrative or SYSTEM context.
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1068, T1548.002]
+    phase: privilege_escalation
+    group_by: [host]
+    where:
+      event_type: privilege_change
+      privilege: { in: [administrator, admin, system, root, domain_admin, SeDebugPrivilege, SeTcbPrivilege] }
+    confidence: 0.85
+
+  - id: PRIV-002
+    title: Account added to a privileged group
+    description: User added to Administrators / Domain Admins / Enterprise Admins / sudo / wheel.
+    kind: match
+    severity: high
+    score: 55
+    techniques: [T1098, T1078]
+    phase: privilege_escalation
+    group_by: [host]
+    where:
+      event_type: group_change
+      action: member_added
+      privilege: { in: [Administrators, "Domain Admins", "Enterprise Admins", "Schema Admins", sudo, wheel, "Remote Desktop Users", "Backup Operators"] }
+    confidence: 0.92
+
+  - id: PRIV-003
+    title: New account created then granted privileges
+    description: A local/domain account created and added to a privileged group within ten minutes — a backdoor admin.
+    kind: sequence
+    severity: critical
+    score: 65
+    techniques: [T1136.001, T1098]
+    phase: persistence
+    group_by: [host]
+    window_seconds: 600
+    steps:
+      - { event_type: user_created }
+      - { event_type: group_change, action: member_added }
+    confidence: 0.93
+
+  - id: PRIV-004
+    title: UAC bypass technique
+    description: fodhelper / eventvwr / computerdefaults / sdclt auto-elevation abuse.
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1548.002]
+    phase: privilege_escalation
+    group_by: [host]
+    where:
+      any_of:
+        - { event_type: process_start, parent_process_name: { in: [fodhelper.exe, eventvwr.exe, computerdefaults.exe, sdclt.exe, slui.exe] }, process_name: { in: [cmd.exe, powershell.exe, pwsh.exe] } }
+        - { event_type: registry_change, file_path: { regex: "(?i)ms-settings\\\\shell\\\\open\\\\command|mscfile\\\\shell\\\\open\\\\command" } }
+    confidence: 0.9
+
+  - id: PRIV-005
+    title: Linux privilege escalation via sudo / setuid abuse
+    description: Successful sudo to root by a user outside the admin group, or a setuid shell spawned.
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1548.001, T1548.003]
+    phase: privilege_escalation
+    group_by: [host]
+    where:
+      source: linux
+      any_of:
+        - { event_type: privilege_change, privilege: root, action: { in: [sudo_success, setuid] } }
+        - { event_type: process_start, command_line: { regex: "(?i)(chmod\\s+[ug]\\+s|chmod\\s+[4]7[0-7]{2}\\s|find\\s+/\\s+-perm\\s+-4000)" } }
+    confidence: 0.85
+
+  - id: PERS-001
+    title: Suspicious scheduled task created
+    description: schtasks /create or Register-ScheduledTask pointing at a script, temp folder, PowerShell or a LOLBin.
+    kind: match
+    severity: high
+    score: 45
+    techniques: [T1053.005]
+    phase: persistence
+    group_by: [host]
+    where:
+      any_of:
+        - { event_type: scheduled_task, action: created, command_line: { regex: "(?i)(powershell|cmd\\.exe|\\.ps1|\\.vbs|\\.js|\\.bat|\\\\temp\\\\|appdata|mshta|rundll32|regsvr32)" } }
+        - { event_type: process_start, command_line: { regex: "(?i)schtasks.*/create.*(powershell|cmd|\\.ps1|\\.vbs|\\\\temp\\\\|appdata|mshta|rundll32)" } }
+        - { event_type: process_start, command_line: { regex: "(?i)register-scheduledtask" } }
+    confidence: 0.88
+
+  - id: PERS-002
+    title: Service installed from a non-standard path
+    description: New Windows service whose binary lives outside Program Files / System32, or with a PowerShell / cmd payload.
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1543.003]
+    phase: persistence
+    group_by: [host]
+    where:
+      any_of:
+        - { event_type: service_started, action: installed, file_path: { regex: "(?i)(\\\\temp\\\\|appdata|\\\\users\\\\public|\\\\programdata\\\\[^\\\\]+\\.exe$|powershell|cmd\\.exe|rundll32)" } }
+        - { event_type: process_start, command_line: { regex: "(?i)sc(\\.exe)?\\s+create.*binpath=.*(temp|appdata|powershell|cmd\\.exe|public)" } }
+    confidence: 0.88
+
+  - id: PERS-003
+    title: Registry run-key persistence
+    description: Value written under HKCU/HKLM ...\CurrentVersion\Run(Once).
+    kind: match
+    severity: medium
+    score: 40
+    techniques: [T1547.001]
+    phase: persistence
+    group_by: [host]
+    where:
+      event_type: registry_change
+      file_path: { regex: "(?i)\\\\currentversion\\\\(run|runonce|runservices)\\\\?" }
+      action: { in: [set_value, create, modified] }
+    confidence: 0.85
+
+  - id: PERS-004
+    title: Linux persistence — cron / systemd / rc.local / SSH key
+    description: Cron entry, systemd unit, rc.local or authorized_keys modified by a shell.
+    kind: match
+    severity: medium
+    score: 40
+    techniques: [T1053.003, T1543.002, T1098.004]
+    phase: persistence
+    group_by: [host]
+    where:
+      source: linux
+      any_of:
+        - { event_type: file_modify, file_path: { regex: "(/etc/cron|/var/spool/cron|/etc/systemd/system/|/etc/rc\\.local|\\.ssh/authorized_keys|/etc/ld\\.so\\.preload)" } }
+        - { event_type: process_start, command_line: { regex: "(?i)(crontab\\s+-|systemctl\\s+enable|echo.*>>\\s*~?/?\\.ssh/authorized_keys)" } }
+    confidence: 0.85
+
+  - id: PERS-005
+    title: WMI event subscription persistence
+    description: Permanent WMI event consumer registered.
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1546.003]
+    phase: persistence
+    group_by: [host]
+    where:
+      event_type: process_start
+      command_line: { regex: "(?i)(commandlineeventconsumer|__eventfilter|__filtertoconsumerbinding|set-wmiinstance.*eventconsumer)" }
+    confidence: 0.9

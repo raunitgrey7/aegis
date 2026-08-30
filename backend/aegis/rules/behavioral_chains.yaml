@@ -1,0 +1,129 @@
+# Behavioural chain rules — ordered sequences that individually might be benign but together are an attack.
+rules:
+  - id: BEHAV-001
+    title: Office → shell → external network
+    description: An Office application spawned a script host which then connected to the internet within ten minutes.
+    kind: sequence
+    severity: critical
+    score: 65
+    techniques: [T1566.001, T1059.001, T1071.001]
+    phase: execution
+    group_by: [host]
+    window_seconds: 600
+    steps:
+      - event_type: process_start
+        parent_process_name: { in: [winword.exe, excel.exe, outlook.exe, powerpnt.exe] }
+        process_name: { in: [cmd.exe, powershell.exe, pwsh.exe, wscript.exe, cscript.exe, mshta.exe] }
+      - event_type: network_connection
+        process_name: { in: [cmd.exe, powershell.exe, pwsh.exe, wscript.exe, cscript.exe, mshta.exe] }
+        dst_ip: { private: false }
+    confidence: 0.93
+
+  - id: BEHAV-002
+    title: Encoded PowerShell → C2 → staged archive → exfiltration
+    description: >-
+      The full credential-compromise-to-exfiltration chain: encoded PowerShell, outbound connection from the
+      interpreter, an archive staged on disk, then a large outbound transfer.
+    kind: sequence
+    severity: critical
+    score: 80
+    techniques: [T1059.001, T1071.001, T1560.001, T1041]
+    phase: exfiltration
+    group_by: [host]
+    window_seconds: 1800
+    steps:
+      - event_type: process_start
+        process_name: { in: [powershell.exe, pwsh.exe] }
+        command_line: { regex: "(?i)-(e|ec|enc|encodedcommand)\\s+[A-Za-z0-9+/=]{20,}" }
+      - event_type: network_connection
+        dst_ip: { private: false }
+      - event_type: file_create
+        file_path: { regex: "(?i)\\.(zip|7z|rar|tar\\.gz)$" }
+      - event_type: network_connection
+        dst_ip: { private: false }
+        bytes_out: { gte: 10000000 }
+    confidence: 0.95
+
+  - id: BEHAV-003
+    title: Login → privilege escalation → persistence
+    description: A successful login followed by privilege escalation and a new service / scheduled task on the same host.
+    kind: sequence
+    severity: critical
+    score: 65
+    techniques: [T1078, T1068, T1543.003]
+    phase: persistence
+    group_by: [host]
+    window_seconds: 1800
+    steps:
+      - { event_type: authentication, action: login_success }
+      - { event_type: privilege_change }
+      - any_of:
+          - { event_type: service_started, action: installed }
+          - { event_type: scheduled_task, action: created }
+    confidence: 0.9
+
+  - id: BEHAV-004
+    title: Archive staged then transmitted externally
+    description: A large archive was created and, within thirty minutes, a comparably large outbound transfer left the host.
+    kind: sequence
+    severity: high
+    score: 60
+    techniques: [T1560.001, T1048]
+    phase: exfiltration
+    group_by: [host]
+    window_seconds: 1800
+    steps:
+      - { event_type: file_create, file_path: { regex: "(?i)\\.(zip|7z|rar|tar\\.gz|tgz)$" }, file_size: { gte: 10000000 } }
+      - { event_type: network_connection, dst_ip: { private: false }, bytes_out: { gte: 10000000 } }
+    confidence: 0.9
+
+  - id: BEHAV-005
+    title: Discovery → credential dumping → lateral movement
+    description: Reconnaissance, then LSASS/SAM access, then remote execution — the hands-on-keyboard intrusion pattern.
+    kind: sequence
+    severity: critical
+    score: 75
+    techniques: [T1087, T1003.001, T1021.002]
+    phase: lateral_movement
+    group_by: [host]
+    window_seconds: 3600
+    steps:
+      - event_type: process_start
+        any_of:
+          - process_name: { in: [whoami.exe, nltest.exe, systeminfo.exe, net.exe, net1.exe] }
+          - command_line: { regex: "(?i)^(net|net1)(\\.exe)?\\s+(user|group|localgroup)" }
+      - event_type: process_start
+        command_line: { regex: "(?i)(mimikatz|sekurlsa|procdump.*lsass|comsvcs\\.dll.*minidump|reg(\\.exe)?\\s+save\\s+hklm)" }
+      - event_type: process_start
+        command_line: { regex: "(?i)(psexec|wmic.*/node:|invoke-command.*-computername|enter-pssession|winrs\\s+-r:)" }
+    confidence: 0.95
+
+  - id: BEHAV-006
+    title: Shadow copies deleted → mass encryption
+    description: Recovery inhibited immediately before mass file modification — ransomware detonation.
+    kind: sequence
+    severity: critical
+    score: 85
+    techniques: [T1490, T1486]
+    phase: impact
+    group_by: [host]
+    window_seconds: 1800
+    steps:
+      - { event_type: process_start, command_line: { regex: "(?i)(vssadmin.*delete\\s+shadows|wmic.*shadowcopy.*delete)" } }
+      - { event_type: file_create, file_path: { regex: "(?i)(readme[_-]?to[_-]?decrypt|how[_-]?to[_-]?(recover|decrypt|restore)|restore[_-]?(my[_-]?)?files)" } }
+    confidence: 0.96
+
+  - id: BEHAV-007
+    title: Anomalous login followed by script execution
+    description: A login with a non-approved geolocation followed by PowerShell/cmd within thirty minutes on the same host.
+    kind: sequence
+    severity: high
+    score: 55
+    techniques: [T1078, T1059]
+    phase: initial_access
+    group_by: [host]
+    window_seconds: 1800
+    steps:
+      - { event_type: authentication, action: login_success, geo_country: { exists: true, not_in: [IN, US, GB, DE, SG, CA, AU, NL, FR, JP] } }
+      - { event_type: process_start, process_name: { in: [powershell.exe, pwsh.exe, cmd.exe, wscript.exe, mshta.exe] } }
+    confidence: 0.85

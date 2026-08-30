@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend — tests & lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "backend[dev]" -e simulator
+      - name: Ruff lint
+        run: ruff check backend simulator
+      - name: Pytest
+        run: pytest backend/tests -q
+
+  evaluation:
+    name: Evaluation — reproduce benchmark (smoke)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e backend -e simulator
+      - name: Run 24+24 benchmark and assert quality gates
+        run: |
+          python - <<'PY'
+          from aegis_sim.evaluation import run_evaluation
+          r = run_evaluation(n_attack=24, n_benign=24, seed=1337, baseline_days=3)
+          print(f"detection={r.detection_rate}% fpr={r.false_positive_rate}% f1={r.f1}%")
+          assert r.detection_rate >= 90, f"detection rate too low: {r.detection_rate}"
+          assert r.false_positive_rate <= 10, f"FPR too high: {r.false_positive_rate}"
+          assert r.phase_reconstruction >= 70, f"chain reconstruction too low: {r.phase_reconstruction}"
+          PY
+
+  frontend:
+    name: Frontend — build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
+        env:
+          NEXT_PUBLIC_API_URL: /api

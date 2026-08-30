@@ -1,0 +1,1255 @@
+{
+  "seed": 1337,
+  "n_attack": 100,
+  "n_benign": 100,
+  "baseline_events": 23047,
+  "detection_rate": 100.0,
+  "false_positive_rate": 2.0,
+  "precision": 98.0,
+  "recall": 100.0,
+  "f1": 99.0,
+  "phase_reconstruction": 89.5,
+  "technique_precision": 62.2,
+  "technique_recall": 86.7,
+  "technique_f1": 72.4,
+  "ioc_accuracy": 82.9,
+  "evidence_coverage": 73.4,
+  "mean_latency_ms": 766.84,
+  "p95_latency_ms": 2269.16,
+  "events_per_second": 199.0,
+  "by_scenario": {
+    "A": {
+      "name": "Brute-force authentication",
+      "runs": 13,
+      "detected": 13,
+      "detection_rate": 100.0,
+      "phase_reconstruction": 100.0,
+      "technique_recall": 100.0,
+      "evidence_coverage": 55.5,
+      "mean_risk": 93.5,
+      "expected_techniques": [
+        "T1110.001",
+        "T1078"
+      ]
+    },
+    "B": {
+      "name": "Suspicious off-hours login",
+      "runs": 13,
+      "detected": 13,
+      "detection_rate": 100.0,
+      "phase_reconstruction": 50.0,
+      "technique_recall": 66.7,
+      "evidence_coverage": 100.0,
+      "mean_risk": 66.6,
+      "expected_techniques": [
+        "T1078",
+        "T1133",
+        "T1059.001"
+      ]
+    },
+    "C": {
+      "name": "Malicious document execution",
+      "runs": 13,
+      "detected": 13,
+      "detection_rate": 100.0,
+      "phase_reconstruction": 100.0,
+      "technique_recall": 100.0,
+      "evidence_coverage": 75.0,
+      "mean_risk": 100.0,
+      "expected_techniques": [
+        "T1566.001",
+        "T1059.001",
+        "T1027.010",
+        "T1071.001"
+      ]
+    },
+    "D": {
+      "name": "Privilege escalation & backdoor account",
+      "runs": 13,
+      "detected": 13,
+      "detection_rate": 100.0,
+      "phase_reconstruction": 100.0,
+      "technique_recall": 100.0,
+      "evidence_coverage": 80.0,
+      "mean_risk": 100.0,
+      "expected_techniques": [
+        "T1548.002",
+        "T1068",
+        "T1136.001",
+        "T1098"
+      ]
+    },
+    "E": {
+      "name": "Hands-on-keyboard lateral movement",
+      "runs": 12,
+      "detected": 12,
+      "detection_rate": 100.0,
+      "phase_reconstruction": 66.7,
+      "technique_recall": 75.0,
+      "evidence_coverage": 29.9,
+      "mean_risk": 100.0,
+      "expected_techniques": [
+        "T1087.002",
+        "T1003.001",
+        "T1021.002",
+        "T1047"
+      ]
+    },
+    "F": {
+      "name": "Ransomware detonation",
+      "runs": 12,
+      "detected": 12,
+      "detection_rate": 100.0,
+      "phase_reconstruction": 100.0,
+      "technique_recall": 100.0,
+      "evidence_coverage": 71.7,
+      "mean_risk": 100.0,
+      "expected_techniques": [
+        "T1490",
+        "T1562.001",
+        "T1486"
+      ]
+    },
+    "G": {
+      "name": "DNS tunnelling / exfiltration channel",
+      "runs": 12,
+      "detected": 12,
+      "detection_rate": 100.0,
+      "phase_reconstruction": 100.0,
+      "technique_recall": 100.0,
+      "evidence_coverage": 98.9,
+      "mean_risk": 100.0,
+      "expected_techniques": [
+        "T1071.004",
+        "T1568.002",
+        "T1048.003"
+      ]
+    },
+    "H": {
+      "name": "Data collection & exfiltration",
+      "runs": 12,
+      "detected": 12,
+      "detection_rate": 100.0,
+      "phase_reconstruction": 100.0,
+      "technique_recall": 50.0,
+      "evidence_coverage": 75.0,
+      "mean_risk": 100.0,
+      "expected_techniques": [
+        "T1039",
+        "T1560.001",
+        "T1048",
+        "T1567.002"
+      ]
+    }
+  },
+  "per_run": [
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 93.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "E",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "F",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "G",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "H",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 93.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "E",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "F",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "G",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "H",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 93.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "E",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "F",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "G",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "H",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 93.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "E",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "F",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "G",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "H",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 93.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "E",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "F",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "G",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "H",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 93.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "E",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "F",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "G",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "H",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 93.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "E",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "F",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "G",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "H",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 93.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "E",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "F",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "G",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "H",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "E",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "F",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "G",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "H",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 93.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "E",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "F",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "G",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "H",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 93.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "E",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "F",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "G",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "H",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 93.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "E",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "F",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "G",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "H",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "A",
+      "detected": true,
+      "risk": 93.0
+    },
+    {
+      "type": "attack",
+      "scenario": "B",
+      "detected": true,
+      "risk": 66.6
+    },
+    {
+      "type": "attack",
+      "scenario": "C",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "attack",
+      "scenario": "D",
+      "detected": true,
+      "risk": 100.0
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "E",
+      "detected": true
+    },
+    {
+      "type": "benign",
+      "scenario": "F",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "G",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "H",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "E",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "F",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "G",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "H",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "E",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "F",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "G",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "H",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "E",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "F",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "G",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "H",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "E",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "F",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "G",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "H",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "E",
+      "detected": true
+    },
+    {
+      "type": "benign",
+      "scenario": "F",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "G",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "H",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "E",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "F",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "G",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "H",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "E",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "F",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "G",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "H",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "E",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "F",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "G",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "H",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "E",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "F",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "G",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "H",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "E",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "F",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "G",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "H",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "E",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "F",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "G",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "H",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "A",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "B",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "C",
+      "detected": false
+    },
+    {
+      "type": "benign",
+      "scenario": "D",
+      "detected": false
+    }
+  ],
+  "confusion": {
+    "tp": 100,
+    "fp": 2,
+    "tn": 98,
+    "fn": 0
+  },
+  "generated_at": "2026-08-30T14:38:53.881941+00:00",
+  "total_events": 30496
+}

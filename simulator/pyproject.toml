@@ -1,0 +1,18 @@
+[project]
+name = "aegis-sim"
+version = "0.1.0"
+description = "Aegis Lab — synthetic enterprise telemetry & attack scenario simulator"
+requires-python = ">=3.11"
+dependencies = ["aegis", "numpy>=1.26"]
+
+[project.scripts]
+aegis-sim = "aegis_sim.cli:main"
+aegis-eval = "aegis_sim.evaluation:__main__"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aegis_sim*"]

@@ -1,0 +1,109 @@
+# Authentication & identity rules
+rules:
+  - id: AUTH-001
+    title: Brute-force authentication followed by success
+    description: >-
+      Five or more failed logins for one account inside two minutes, followed by a successful login.
+      Classic password-guessing that succeeded.
+    kind: threshold
+    severity: high
+    score: 55
+    techniques: [T1110.001, T1078]
+    phase: credential_access
+    group_by: [user]
+    window_seconds: 180
+    where: { event_type: authentication, action: login_failure }
+    count_gte: 5
+    then: { event_type: authentication, action: login_success }
+    confidence: 0.92
+
+  - id: AUTH-002
+    title: Password spraying from a single source
+    description: Ten or more distinct accounts failing authentication from the same source IP within five minutes.
+    kind: threshold
+    severity: high
+    score: 50
+    techniques: [T1110.003]
+    phase: credential_access
+    group_by: [src_ip]
+    window_seconds: 300
+    where: { event_type: authentication, action: login_failure }
+    distinct: user
+    count_gte: 10
+    confidence: 0.9
+
+  - id: AUTH-003
+    title: Repeated authentication failures without success
+    description: Twenty failed logins for a single account in ten minutes (lockout evasion / slow brute force).
+    kind: threshold
+    severity: medium
+    score: 30
+    techniques: [T1110.001]
+    phase: credential_access
+    group_by: [user]
+    window_seconds: 600
+    where: { event_type: authentication, action: login_failure }
+    count_gte: 20
+    cooldown_seconds: 1800
+    confidence: 0.8
+
+  - id: AUTH-004
+    title: Successful login from a non-approved country
+    description: Interactive or remote login geolocated outside the organisation's approved countries.
+    kind: match
+    severity: medium
+    score: 35
+    techniques: [T1078, T1133]
+    phase: initial_access
+    group_by: [user]
+    where:
+      event_type: authentication
+      action: login_success
+      geo_country: { exists: true, not_in: [IN, US, GB, DE, SG, CA, AU, NL, FR, JP] }
+    confidence: 0.7
+
+  - id: AUTH-005
+    title: Login using a disabled or honeytoken account
+    description: Any authentication attempt against an account tagged as honeytoken or disabled.
+    kind: match
+    severity: critical
+    score: 70
+    techniques: [T1078]
+    phase: initial_access
+    group_by: [user]
+    where:
+      event_type: authentication
+      user: { startswith: ["svc-honey", "honey-"] }
+    confidence: 0.95
+
+  - id: AUTH-006
+    title: Impossible travel — same account, two countries within one hour
+    description: Successful logins for one account from two different countries less than an hour apart.
+    kind: sequence
+    severity: high
+    score: 50
+    techniques: [T1078]
+    phase: initial_access
+    group_by: [user]
+    window_seconds: 3600
+    steps:
+      - { event_type: authentication, action: login_success, geo_country: IN }
+      - { event_type: authentication, action: login_success, geo_country: { exists: true, not_in: [IN] } }
+    confidence: 0.75
+
+  - id: AUTH-007
+    title: Service account interactive logon
+    description: Service accounts should never log on interactively.
+    kind: match
+    severity: medium
+    score: 35
+    techniques: [T1078.002]
+    phase: initial_access
+    group_by: [user]
+    where:
+      event_type: authentication
+      action: login_success
+      user: { startswith: ["svc-", "svc_"] }
+      privilege: { in: [interactive, rdp] }
+      not: { user: { startswith: ["svc-honey"] } }
+    confidence: 0.8

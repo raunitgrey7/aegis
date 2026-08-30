@@ -1,0 +1,260 @@
+# Collection, C2, exfiltration, file and DNS rules
+rules:
+  - id: COLL-001
+    title: Data staged into an archive
+    description: A large archive (zip/7z/rar/tar.gz) created in Temp / Public / Downloads / a hidden folder.
+    kind: match
+    severity: medium
+    score: 40
+    techniques: [T1560.001, T1074.001]
+    phase: collection
+    group_by: [host]
+    where:
+      event_type: file_create
+      file_path: { regex: "(?i)\\.(zip|7z|rar|tar\\.gz|tgz|cab)$" }
+      file_size: { gte: 20000000 }
+    confidence: 0.8
+
+  - id: COLL-002
+    title: Archive utility invoked with password / recursive flags
+    description: 7z / rar / tar compressing directories with a password — attacker staging.
+    kind: match
+    severity: medium
+    score: 40
+    techniques: [T1560.001]
+    phase: collection
+    group_by: [host]
+    where:
+      event_type: process_start
+      any_of:
+        - { process_name: { in: [7z.exe, 7za.exe, rar.exe, winrar.exe] }, command_line: { regex: "(?i)\\s(a|-a)\\s.*(-p|-r|-hp|-m)" } }
+        - { command_line: { regex: "(?i)compress-archive.*-destinationpath.*(temp|public|appdata)" } }
+        - { process_name: tar, command_line: { regex: "(?i)tar\\s+-?[a-z]*c[a-z]*z?f?\\s+/(tmp|dev/shm)" } }
+    confidence: 0.85
+
+  - id: COLL-003
+    title: Mass access to sensitive file shares
+    description: Two hundred or more file reads from share / document paths by one user in five minutes.
+    kind: threshold
+    severity: medium
+    score: 35
+    techniques: [T1039, T1005]
+    phase: collection
+    group_by: [user]
+    window_seconds: 300
+    count_gte: 200
+    where:
+      event_type: file_read
+      file_path: { regex: "(?i)(\\\\\\\\[^\\\\]+\\\\(finance|hr|legal|shared|documents)|/srv/share|/mnt/share)" }
+    cooldown_seconds: 1800
+    confidence: 0.8
+
+  - id: C2-001
+    title: Beaconing to an external host
+    description: Twenty-five or more connections from one host to the same external IP in thirty minutes (regular check-ins).
+    kind: threshold
+    severity: high
+    score: 50
+    techniques: [T1071.001, T1573]
+    phase: command_and_control
+    group_by: [host, dst_ip]
+    window_seconds: 1800
+    count_gte: 25
+    where:
+      event_type: network_connection
+      dst_ip: { private: false }
+      domain: { exists: false }
+    cooldown_seconds: 3600
+    confidence: 0.8
+
+  - id: C2-002
+    title: Outbound connection on a non-standard port
+    description: Connection to a public IP on a port commonly used by C2 frameworks (4444, 1337, 6666, 8081, 9001, 50050).
+    kind: match
+    severity: high
+    score: 45
+    techniques: [T1571, T1071]
+    phase: command_and_control
+    group_by: [host]
+    where:
+      event_type: network_connection
+      dst_ip: { private: false }
+      dst_port: { in: [4444, 1337, 6666, 6667, 8081, 9001, 50050, 31337, 5555, 2222] }
+    confidence: 0.85
+
+  - id: C2-003
+    title: Script interpreter making outbound connection
+    description: PowerShell / wscript / mshta / rundll32 / regsvr32 opened a network connection to a public IP.
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1059.001, T1071.001]
+    phase: command_and_control
+    group_by: [host]
+    where:
+      event_type: network_connection
+      process_name: { in: [powershell.exe, pwsh.exe, wscript.exe, cscript.exe, mshta.exe, rundll32.exe, regsvr32.exe, certutil.exe, msbuild.exe] }
+      dst_ip: { private: false }
+    confidence: 0.9
+
+  - id: EXFIL-001
+    title: Large outbound transfer to an unsanctioned destination
+    description: >-
+      A single connection sending more than 50 MB to a public destination that is NOT a sanctioned
+      corporate cloud (Microsoft 365 / OneDrive / Google Workspace / approved backup).
+    kind: match
+    severity: high
+    score: 55
+    techniques: [T1048, T1041]
+    phase: exfiltration
+    group_by: [host]
+    where:
+      event_type: network_connection
+      dst_ip: { private: false }
+      bytes_out: { gte: 50000000 }
+      not:
+        domain: { endswith: [onedrive.live.com, sharepoint.com, office365.com, microsoftonline.com, googleapis.com, drive.google.com, docs.google.com, dropbox.com, box.com, amazonaws.com, blob.core.windows.net, icloud.com, apple.com] }
+    confidence: 0.85
+
+  - id: EXFIL-002
+    title: Upload to personal cloud / file-sharing service
+    description: Outbound data to consumer file-sharing or paste domains.
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1567.002]
+    phase: exfiltration
+    group_by: [host]
+    where:
+      any_of:
+        - { event_type: network_connection, domain: { endswith: [mega.nz, mega.io, anonfiles.com, transfer.sh, file.io, wetransfer.com, gofile.io, pastebin.com, temp.sh, ufile.io, filebin.net] }, bytes_out: { gte: 5000000 } }
+        - { event_type: dns_query, domain: { endswith: [mega.nz, anonfiles.com, transfer.sh, gofile.io, temp.sh, ufile.io, filebin.net] } }
+    confidence: 0.8
+
+  - id: EXFIL-003
+    title: Cumulative outbound volume to one external IP
+    description: More than 200 MB sent to a single external destination within one hour across connections.
+    kind: threshold
+    severity: high
+    score: 50
+    techniques: [T1041, T1030]
+    phase: exfiltration
+    group_by: [host, dst_ip]
+    window_seconds: 3600
+    count_gte: 8
+    where:
+      event_type: network_connection
+      dst_ip: { private: false }
+      bytes_out: { gte: 25000000 }
+      not:
+        domain: { endswith: [onedrive.live.com, sharepoint.com, office365.com, microsoftonline.com, googleapis.com, drive.google.com, dropbox.com, box.com, amazonaws.com, blob.core.windows.net, icloud.com] }
+    cooldown_seconds: 3600
+    confidence: 0.85
+
+  - id: FILE-001
+    title: Mass file modification (ransomware behaviour)
+    description: One process modifying 150+ files on a host inside sixty seconds.
+    kind: threshold
+    severity: critical
+    score: 75
+    techniques: [T1486]
+    phase: impact
+    group_by: [host]
+    window_seconds: 60
+    count_gte: 150
+    where:
+      event_type: { in: [file_modify, file_create] }
+      file_path: { regex: "(?i)\\.(locked|encrypted|crypt|enc|lock|akira|lockbit|blackcat|conti|ryk|phobos)$" }
+    cooldown_seconds: 600
+    confidence: 0.95
+
+  - id: FILE-002
+    title: Ransom note dropped
+    description: File named like a ransom note (README_TO_DECRYPT, HOW_TO_RECOVER, RESTORE-FILES.txt).
+    kind: match
+    severity: critical
+    score: 70
+    techniques: [T1486]
+    phase: impact
+    group_by: [host]
+    where:
+      event_type: file_create
+      file_path: { regex: "(?i)(readme[_-]?to[_-]?decrypt|how[_-]?to[_-]?(recover|decrypt|restore)|restore[_-]?(my[_-]?)?files|decrypt[_-]?instructions|!!!.*read.*!!!)" }
+    confidence: 0.95
+
+  - id: FILE-003
+    title: Sensitive credential file accessed
+    description: Reads of password stores, browser credential DBs, cloud CLI tokens or SSH keys.
+    kind: match
+    severity: high
+    score: 45
+    techniques: [T1552.001, T1555.003, T1552.004]
+    phase: credential_access
+    group_by: [host]
+    where:
+      event_type: file_read
+      file_path: { regex: "(?i)(\\\\login data$|\\\\cookies$|\\.aws\\\\credentials|\\.azure\\\\|\\.kube\\\\config|id_rsa$|id_ed25519$|\\.gnupg|keepass.*\\.kdbx|passwords?\\.(txt|xlsx|docx)|/etc/shadow)" }
+    confidence: 0.85
+
+  - id: FILE-004
+    title: Executable written by an Office application or browser to a startup-ish location
+    description: winword/excel/outlook/browser writing .exe/.dll/.ps1/.vbs/.hta to disk.
+    kind: match
+    severity: high
+    score: 45
+    techniques: [T1566.001, T1204.002]
+    phase: initial_access
+    group_by: [host]
+    where:
+      event_type: file_create
+      process_name: { in: [winword.exe, excel.exe, outlook.exe, powerpnt.exe, chrome.exe, msedge.exe, firefox.exe] }
+      file_path: { regex: "(?i)\\.(exe|dll|ps1|vbs|js|hta|scr|bat|cmd|lnk)$" }
+    confidence: 0.85
+
+  - id: DNS-001
+    title: DNS query to known dynamic-DNS / tunnelling provider
+    description: Lookups for free dynamic-DNS or DNS-tunnel providers frequently used for C2.
+    kind: match
+    severity: medium
+    score: 35
+    techniques: [T1071.004, T1568]
+    phase: command_and_control
+    group_by: [host]
+    where:
+      event_type: dns_query
+      domain: { endswith: [duckdns.org, no-ip.org, no-ip.com, ddns.net, hopto.org, zapto.org, sytes.net, dynu.com, ngrok.io, ngrok-free.app, serveo.net, localtunnel.me] }
+    confidence: 0.8
+
+  - id: DNS-002
+    title: Excessive NXDOMAIN responses
+    description: Fifty or more failed DNS resolutions from one host in two minutes — DGA behaviour.
+    kind: threshold
+    severity: medium
+    score: 40
+    techniques: [T1568.002]
+    phase: command_and_control
+    group_by: [host]
+    window_seconds: 120
+    count_gte: 50
+    where:
+      event_type: dns_query
+      outcome: { in: [failure, nxdomain] }
+    cooldown_seconds: 1800
+    confidence: 0.85
+
+  - id: DNS-003
+    title: TXT-record query storm
+    description: Twenty or more TXT queries from one host in five minutes — DNS tunnelling channel.
+    kind: threshold
+    severity: medium
+    score: 40
+    techniques: [T1071.004, T1048.003]
+    phase: command_and_control
+    group_by: [host]
+    window_seconds: 300
+    count_gte: 20
+    where:
+      event_type: dns_query
+      protocol: TXT
+    cooldown_seconds: 1800
+    confidence: 0.8
