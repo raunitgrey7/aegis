@@ -38,3 +38,7 @@ Thumbs.db
 # Aegis
 backend/aegis.db
 evaluation/results/*.tmp
+
+# Next.js auto-generated agent rules
+frontend/AGENTS.md
+frontend/CLAUDE.md
