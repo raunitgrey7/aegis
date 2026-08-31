@@ -47,10 +47,13 @@ def create_app(seed_demo: bool = True) -> FastAPI:
         openapi_url="/openapi.json",
         lifespan=_lifespan,
     )
+    # Wildcard origins can't be combined with credentialed CORS per the Fetch spec. Auth is by
+    # bearer token (not cookies), so when a deployment opens origins to "*" we disable credentials.
+    wildcard = "*" in s.cors_origins
     app.add_middleware(
         CORSMiddleware,
         allow_origins=s.cors_origins,
-        allow_credentials=True,
+        allow_credentials=not wildcard,
         allow_methods=["*"],
         allow_headers=["*"],
     )
