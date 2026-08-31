@@ -6,7 +6,7 @@
 
 **Ingest security telemetry → detect malicious behavior deterministically → reconstruct the attack chain as a graph → investigate and explain it with evidence-grounded AI.**
 
-Self-hosted · local LLM · zero API-key dependency · reproducible benchmark
+**[▶ Live demo](https://aegis-ochre-eight.vercel.app)** · Self-hosted · local LLM · zero API-key dependency · reproducible benchmark
 
 ![Detection](https://img.shields.io/badge/detection_rate-100%25-22c55e)
 ![FPR](https://img.shields.io/badge/false_positive_rate-2%25-38bdf8)
@@ -14,7 +14,7 @@ Self-hosted · local LLM · zero API-key dependency · reproducible benchmark
 ![Rules](https://img.shields.io/badge/detections-58-38bdf8)
 ![ATT&CK](https://img.shields.io/badge/MITRE_ATT%26CK-69%2F80_techniques-f97316)
 ![License](https://img.shields.io/badge/license-Apache_2.0-blue)
-![CI](https://img.shields.io/badge/CI-passing-brightgreen)
+![CI](https://img.shields.io/badge/demo-live-22c55e)
 ![Python](https://img.shields.io/badge/python-3.12-3776ab)
 ![Next.js](https://img.shields.io/badge/Next.js-16-000000)
 

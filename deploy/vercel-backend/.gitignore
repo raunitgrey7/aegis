@@ -1,0 +1,6 @@
+# Assembled at deploy time by build.sh
+/aegis/
+/aegis_sim/
+
+.vercel
+.env*

@@ -1,8 +1,7 @@
 # LinkedIn Post — Aegis launch
 
-> Hero image to attach: `docs/screenshots/01-overview.jpg` (the Security Overview dashboard).
+> Hero image to attach: `docs/screenshots/hero-live.jpg` (the live Security Overview dashboard).
 > Optionally add `02-attack-graph.jpg` and `04-copilot.jpg` as a carousel.
-> Replace `<LIVE_URL>` with the deployed Vercel link once it's live.
 
 ---
 
@@ -28,11 +27,11 @@ On a reproducible benchmark (100 simulated attacks + 100 benign look-alikes):
 ✅ sub-millisecond detection per event
 ✅ ₹0 API-key cost — it runs local models, self-hosted, so telemetry never leaves your network
 
-The whole thing is real and running: a FastAPI backend with 58 detections, a security knowledge graph + attack-graph reconstruction, multi-agent AI investigation with a prompt-injection defense, and a Next.js SOC console — deployed with Hugging Face + Vercel, backed by 57 tests and CI.
+The whole thing is real and running: a FastAPI backend with 58 detections, a security knowledge graph + attack-graph reconstruction, multi-agent AI investigation with a prompt-injection defense, and a Next.js SOC console — deployed on Vercel (frontend + Python backend), backed by 57 tests and CI.
 
 This is the third in a series of deep AI products across very different engineering domains (a personal-AI OS, an SRE incident brain, and now security) — the thesis being: put AI where it's genuinely useful (explanation), on top of a deterministic, trustworthy core.
 
-🔗 Live demo: <LIVE_URL>  (log in as analyst / analyst)
+🔗 Live demo: https://aegis-ochre-eight.vercel.app  (log in as analyst / analyst)
 💻 Code + docs: https://github.com/raunitgrey7/aegis
 
 Would love feedback from anyone in the SOC / detection-engineering / threat-intel world — what would make this useful on *your* real telemetry?
@@ -49,6 +48,6 @@ The principle: **AI is not the detector.** Deterministic engines (rules + statis
 
 Reproducible benchmark: **100% detection · 2% false positives · 99% F1 · 89.5% attack-chain reconstruction** — self-hosted, ₹0 API cost.
 
-🔗 Live: <LIVE_URL>  ·  💻 github.com/raunitgrey7/aegis
+🔗 Live: https://aegis-ochre-eight.vercel.app  ·  💻 github.com/raunitgrey7/aegis
 
 #CyberSecurity #AI #ThreatDetection #SOC #MITREATTACK #IncidentResponse #DetectionEngineering #InfoSec #LLM #BlueTeam

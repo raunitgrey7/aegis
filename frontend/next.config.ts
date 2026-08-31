@@ -6,8 +6,9 @@ import path from "node:path";
 const BACKEND = process.env.AEGIS_BACKEND_URL ?? "http://localhost:8000";
 
 const nextConfig: NextConfig = {
-  // Emit a self-contained server bundle for the production Docker image.
-  output: "standalone",
+  // Emit a self-contained server bundle for the Docker image only (set NEXT_OUTPUT=standalone).
+  // On Vercel we leave this unset — Vercel manages its own build output/tracing.
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   // Pin the workspace root so Next doesn't pick up a stray lockfile in the home directory.
   turbopack: {
     root: path.resolve(__dirname),

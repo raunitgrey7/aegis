@@ -1,4 +1,41 @@
-# Deploying Aegis (Hugging Face backend + Vercel frontend)
+# Deploying Aegis
+
+**Live demo:** frontend https://aegis-ochre-eight.vercel.app · backend https://aegis-api-henna.vercel.app/docs
+
+The current live demo runs **both tiers on Vercel** (the frontend as a Next.js app, the FastAPI backend
+as a Python function via Fluid Compute) — see **Option B** below. HuggingFace Docker Spaces now require a
+paid PRO plan, so the original HF-backend path (**Option A**) is kept for reference but needs HF PRO.
+
+## Option B — backend on Vercel (free, what the live demo uses)
+
+The FastAPI backend is packaged as a self-contained Vercel Python project in `deploy/vercel-backend/`.
+
+```bash
+bash deploy/vercel-backend/build.sh          # copies aegis + aegis_sim into the project
+cd deploy/vercel-backend
+vercel link --yes --project aegis-api
+printf 'false'  | vercel env add AEGIS_LLM_ENABLED  production
+printf '["*"]'  | vercel env add AEGIS_CORS_ORIGINS production
+vercel deploy --prod --yes                   # -> https://<project>.vercel.app  (use the production alias)
+```
+
+Then deploy the frontend pointing at that backend:
+
+```bash
+cd frontend
+vercel link --yes --project aegis
+printf 'https://aegis-api-henna.vercel.app' | vercel env add AEGIS_BACKEND_URL   production
+printf '/api'                                | vercel env add NEXT_PUBLIC_API_URL production
+vercel deploy --prod --yes
+```
+
+`next.config.ts` rewrites `/api/:path*` to `${AEGIS_BACKEND_URL}/api/:path*`, and the client uses
+`NEXT_PUBLIC_API_URL=/api`, so every call is same-origin and Vercel proxies it to the backend (no CORS).
+Note: Vercel's protected preview URLs 302; use the **production alias** (public) for the demo.
+
+---
+
+# Deploying Aegis (Hugging Face backend + Vercel frontend) — Option A (needs HF PRO)
 
 The public demo runs the **API on a Hugging Face Docker Space** and the **Next.js UI on Vercel**. The
 frontend proxies `/api/*` to the Space via a Next.js rewrite, so the browser makes same-origin calls and
