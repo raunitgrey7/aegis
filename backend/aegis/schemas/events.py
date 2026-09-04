@@ -45,6 +45,7 @@ class EventType(StrEnum):
     SERVICE_STOPPED = "service_stopped"
     SCHEDULED_TASK = "scheduled_task"
     REGISTRY_CHANGE = "registry_change"
+    PROCESS_ACCESS = "process_access"
     SECURITY_ALERT = "security_alert"
     APPLICATION_LOG = "application_log"
     SYSTEM_LOG = "system_log"

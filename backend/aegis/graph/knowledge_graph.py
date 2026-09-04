@@ -108,6 +108,15 @@ class SecurityKnowledgeGraph:
             if user and et == EventType.PROCESS_START:
                 self._edge(user, proc, "ran", e)
 
+        elif et == EventType.PROCESS_ACCESS and e.process_name:  # v2.1: Sysmon-10 memory access
+            src = self._node("process", f"{e.host or '?'}/{e.process_name}", ts=ts, name=e.process_name)
+            target = e.file_path.replace("\\", "/").rsplit("/", 1)[-1] if e.file_path else None
+            if target:
+                tgt = self._node("process", f"{e.host or '?'}/{target}", ts=ts, name=target)
+                self._edge(src, tgt, "accessed", e)
+            elif host:
+                self._edge(host, src, "executed", e)
+
         elif et in (EventType.FILE_CREATE, EventType.FILE_MODIFY, EventType.FILE_DELETE, EventType.FILE_READ) and e.file_path:
             f = self._node("file", e.file_path, ts=ts, hash=e.file_hash, size=e.file_size)
             rel = {"file_create": "wrote", "file_modify": "modified", "file_delete": "deleted", "file_read": "read"}[et.value]

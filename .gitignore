@@ -42,3 +42,6 @@ evaluation/results/*.tmp
 # Next.js auto-generated agent rules
 frontend/AGENTS.md
 frontend/CLAUDE.md
+
+# Large real external datasets (OTRF/Mordor) - do not commit
+backend/aegis/data/external/real/

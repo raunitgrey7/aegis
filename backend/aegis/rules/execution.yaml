@@ -152,9 +152,11 @@ rules:
     where:
       event_type: process_start
       any_of:
-        - process_name: { in: [whoami.exe, systeminfo.exe, nltest.exe, ipconfig.exe, arp.exe, nslookup.exe, tasklist.exe, quser.exe, qwinsta.exe, netstat.exe, dsquery.exe, adfind.exe] }
+        - process_name: { in: [whoami.exe, systeminfo.exe, nltest.exe, ipconfig.exe, arp.exe, nslookup.exe, tasklist.exe, quser.exe, qwinsta.exe, netstat.exe, dsquery.exe, adfind.exe, route.exe, hostname.exe, net.exe, net1.exe, reg.exe, wmic.exe] }
         - command_line: { regex: "(?i)^(net|net1)(\\.exe)?\\s+(user|group|localgroup|view|share|accounts)" }
-        - command_line: { regex: "(?i)get-ad(user|computer|group)|get-netuser|get-domaincomputer" }
+        # PowerShell reconnaissance cmdlets (captured in script-block logging on real EDR) -- v2.1
+        - command_line: { regex: "(?i)get-(ad(user|computer|group|domain|domaincontroller)|netuser|domaincomputer|localuser|localgroup(member)?|process|service|hotfix|wmiobject|ciminstance|netadapter|netipconfiguration|smbshare|childitem|nettcpconnection)" }
+        - command_line: { regex: "(?i)(\\[system\\.directoryservices|net\\.dns\\]::gethost|test-connection|get-wmiobject\\s+win32_)|systeminfo|ipconfig\\s+/all|arp\\s+-a|route\\s+print|nltest\\s+/|whoami\\s+/" }
     confidence: 0.85
 
   - id: CRED-001
@@ -186,3 +188,42 @@ rules:
       event_type: process_start
       command_line: { regex: "(?i)(setspn\\s+-[tq]|invoke-kerberoast|rubeus.*kerberoast|getuserspns)" }
     confidence: 0.9
+
+  - id: CRED-003
+    title: LSASS memory access (possible credential dumping)
+    description: >-
+      A process opened a handle to lsass.exe with memory-read access (Sysmon EventID 10). This is the
+      core signal of LSASS credential theft (mimikatz, comsvcs MiniDump, procdump, nanodump) and is
+      emitted by real EDR even when the tooling never appears on a command line.
+    kind: match
+    severity: high
+    score: 55
+    techniques: [T1003.001]
+    phase: credential_access
+    group_by: [host]
+    where:
+      event_type: process_access
+      file_path: { endswith: lsass.exe }
+      tags: { contains: lsass_access }
+      not:
+        process_name: { in: [wmiprvse.exe, msmpeng.exe, mssense.exe, sensendr.exe, csfalconservice.exe, csfalcon.exe, taskmgr.exe, lsass.exe, services.exe, wininit.exe, csrss.exe, sqlservr.exe, procexp64.exe, procexp.exe, vmtoolsd.exe, sppsvc.exe] }
+    confidence: 0.8
+
+  - id: EXEC-007
+    title: Malicious PowerShell script block
+    description: >-
+      PowerShell script-block / module logging (EventID 4104/4103/800) whose content shows encoding,
+      an in-memory download cradle, AMSI bypass, or reflective loading. Real EDR captures the payload
+      here even when the launching command line is clean.
+    kind: match
+    severity: high
+    score: 50
+    techniques: [T1059.001, T1027.010]
+    phase: execution
+    group_by: [host]
+    where:
+      event_type: process_start
+      action: script_block
+      command_line:
+        regex: "(?i)(frombase64string|-enc(odedcommand)?\\s+[a-z0-9+/=]{20,}|iex\\s*\\(|invoke-expression|new-object\\s+net\\.webclient|downloadstring|downloadfile|amsiutils|amsiscanbuffer|reflection\\.assembly.*load|\\[char\\]\\s*\\[|invoke-mimikatz|invoke-shellcode|virtualalloc|createthread|getprocaddress)"
+    confidence: 0.85
