@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import clsx from "clsx";
 import {
@@ -11,8 +12,50 @@ import {
   ShieldAlert,
   Waypoints,
 } from "lucide-react";
+import { api } from "@/lib/api";
 import { NavLink } from "./ui";
 import { logout, useAuth } from "@/lib/auth";
+
+function HealthChip() {
+  const [health, setHealth] = useState<{ ok: boolean; llm: boolean } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const check = async () => {
+      try {
+        const h = await api.health();
+        if (alive) setHealth({ ok: h.status === "ok", llm: !!h.llm });
+      } catch {
+        if (alive) setHealth({ ok: false, llm: false });
+      }
+    };
+    check();
+    const t = setInterval(check, 60_000);
+    return () => {
+      alive = false;
+      clearInterval(t);
+    };
+  }, []);
+  const ok = health?.ok ?? true;
+  return (
+    <div
+      className="mx-3 mb-1 flex items-center gap-2 rounded-lg border border-[var(--border)] px-3 py-2"
+      title={ok ? "API reachable" : "API unreachable"}
+    >
+      <span
+        className={clsx("h-1.5 w-1.5 rounded-full", ok && "pulse")}
+        style={{ background: ok ? "var(--ok)" : "var(--critical)" }}
+      />
+      <span className="mono text-[9px] uppercase tracking-wider text-[var(--fg-dim)]">
+        {health === null ? "checking api…" : ok ? "api online" : "api offline"}
+      </span>
+      {health && ok && (
+        <span className="mono ml-auto text-[9px] uppercase tracking-wider text-[var(--fg-dim)]">
+          llm {health.llm ? "on" : "off"}
+        </span>
+      )}
+    </div>
+  );
+}
 
 const NAV = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
@@ -87,6 +130,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
+        <HealthChip />
         <div className="border-t border-[var(--border)] p-3">
           <div className="flex items-center gap-3 rounded-lg px-3 py-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--elevated)] text-xs font-bold uppercase text-[var(--accent)]">

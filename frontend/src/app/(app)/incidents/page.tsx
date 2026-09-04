@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Filter } from "lucide-react";
+import { ChevronRight, Filter, Search } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import type { IncidentSummary } from "@/lib/types";
 import { PHASE_LABEL } from "@/lib/theme";
@@ -17,6 +17,7 @@ export default function IncidentsPage() {
   const [error, setError] = useState("");
   const [severity, setSeverity] = useState<string>("");
   const [status, setStatus] = useState<string>("");
+  const [query, setQuery] = useState<string>("");
 
   const load = useCallback(async () => {
     try {
@@ -37,6 +38,25 @@ export default function IncidentsPage() {
     load();
   }, [load]);
 
+  const filtered = useMemo(() => {
+    if (!incidents) return null;
+    const q = query.trim().toLowerCase();
+    if (!q) return incidents;
+    return incidents.filter((i) =>
+      [
+        i.incident_id,
+        i.title,
+        ...i.affected_hosts,
+        ...i.affected_users,
+        ...i.external_ips,
+        ...i.techniques,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [incidents, query]);
+
   if (error) return <ErrorState message={error} />;
 
   return (
@@ -46,25 +66,34 @@ export default function IncidentsPage() {
           <h1 className="text-xl font-bold tracking-tight text-[var(--fg)]">Incidents</h1>
           <p className="mt-1 text-sm text-[var(--fg-dim)]">
             Correlated attack stories, ranked by risk.{" "}
-            {incidents && <span className="mono">{incidents.length} shown</span>}
+            {filtered && <span className="mono">{filtered.length} shown</span>}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--fg-dim)]" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search id, host, user, technique…"
+              className="w-56 rounded-lg border border-[var(--border)] bg-[var(--panel)] py-2 pl-8 pr-3 text-sm text-[var(--fg)] outline-none transition focus:border-[var(--accent)]/50"
+            />
+          </div>
           <Filter className="h-4 w-4 text-[var(--fg-dim)]" />
           <FilterSelect value={severity} onChange={setSeverity} placeholder="All severities" options={SEVERITIES} />
           <FilterSelect value={status} onChange={setStatus} placeholder="All statuses" options={STATUSES} />
         </div>
       </div>
 
-      {!incidents ? (
+      {!filtered ? (
         <Loading label="Loading incidents…" rows={8} />
-      ) : incidents.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="panel-flat p-12 text-center text-sm text-[var(--fg-dim)]">
           No incidents match these filters.
         </div>
       ) : (
         <div className="space-y-2.5">
-          {incidents.map((inc) => (
+          {filtered.map((inc) => (
             <button
               key={inc.incident_id}
               onClick={() => router.push(`/incidents/${inc.incident_id}`)}

@@ -248,27 +248,51 @@ def graph_search(q: str = Query(min_length=1), user: User = Depends(current_user
 
 @router.get("/graph/threat-map", tags=["graph"])
 def threat_map(user: User = Depends(current_user), state: AppState = Depends(get_state)):
-    """External IPs / domains involved in incidents, with their threat-intel context."""
+    """External IPs / domains involved in incidents, their threat-intel context, and the
+    geographic shape of the activity: per-node country where a feed attributes the
+    indicator, per-country login origins observed in incident evidence, and the estate's
+    home country (``AEGIS_HOME_COUNTRY``) so a client can draw origin→HQ arcs."""
+    home = (state.settings.home_country or "IN").upper()
     nodes = []
+    origins: dict[str, dict] = {}
     for i in state.platform.incidents.values():
         for ip in i.external_ips:
             ioc = state.platform.ti_store.lookup_ip(ip)
             nodes.append({"type": "ip", "value": ip, "incident": i.incident_id, "risk": i.risk_score,
                           "known_malicious": ioc is not None, "threat": ioc.threat if ioc else None,
+                          "country": ioc.country if ioc else None,
                           "hosts": i.affected_hosts})
         for dom in i.domains:
             ioc = state.platform.ti_store.lookup_domain(dom)
             if ioc or not dom.endswith((".local", ".corp")):
                 nodes.append({"type": "domain", "value": dom, "incident": i.incident_id, "risk": i.risk_score,
                               "known_malicious": ioc is not None, "threat": ioc.threat if ioc else None,
+                              "country": ioc.country if ioc else None,
                               "hosts": i.affected_hosts})
+        # login origins seen in this incident's evidence (auth events carry geo_country)
+        for e in state.platform.incident_events(i):
+            c = (e.geo_country or "").upper()
+            if c and c != home:
+                o = origins.setdefault(c, {"incidents": set(), "max_risk": 0.0, "users": set()})
+                o["incidents"].add(i.incident_id)
+                o["max_risk"] = max(o["max_risk"], i.risk_score)
+                if e.user:
+                    o["users"].add(e.user)
     # dedup by value keeping highest risk
     best: dict[str, dict] = {}
     for n in nodes:
         k = n["value"]
         if k not in best or n["risk"] > best[k]["risk"]:
             best[k] = n
-    return {"nodes": list(best.values())}
+    return {
+        "nodes": list(best.values()),
+        "origins": [
+            {"country": c, "incidents": len(v["incidents"]), "max_risk": v["max_risk"],
+             "users": sorted(v["users"])[:6]}
+            for c, v in sorted(origins.items(), key=lambda kv: -kv[1]["max_risk"])
+        ],
+        "hq": {"country": home},
+    }
 
 
 # ------------------------------------------------------------------ threat intel

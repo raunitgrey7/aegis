@@ -23,8 +23,8 @@ export default function CoveragePage() {
   if (error) return <ErrorState message={error} />;
   if (!cov) return <Loading label="Loading ATT&CK coverage…" rows={6} />;
 
-  const pct = Math.round((cov.techniques_covered / cov.techniques_total) * 100);
-  const tactics = Object.entries(cov.tactics).filter(([, t]) => t.total > 0);
+  const pct = cov.techniques_total ? Math.round((cov.techniques_covered / cov.techniques_total) * 100) : 0;
+  const tactics = Object.entries(cov.tactics ?? {}).filter(([, t]) => t.total > 0);
 
   return (
     <div className="space-y-5 rise">
@@ -54,7 +54,7 @@ export default function CoveragePage() {
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {tactics.map(([id, t]) => {
-          const tpct = Math.round((t.covered / t.total) * 100);
+          const tpct = t.total ? Math.round((t.covered / t.total) * 100) : 0;
           return (
             <Panel key={id} className="!p-4">
               <div className="mb-3 flex items-center justify-between">
@@ -73,7 +73,7 @@ export default function CoveragePage() {
                 />
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {t.techniques.map((tech) => (
+                {(t.techniques ?? []).map((tech) => (
                   <span
                     key={tech.id}
                     title={`${tech.id} ${tech.name}${tech.covered ? " — covered" : ""}`}

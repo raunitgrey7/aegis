@@ -163,10 +163,11 @@ export default function IncidentDetailPage() {
 
 /* ------------------------------------------------------------------ Risk gauge */
 function RiskGauge({ value }: { value: number }) {
-  const color = riskColor(value);
+  const v = Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0;
+  const color = riskColor(v);
   const r = 30;
   const c = 2 * Math.PI * r;
-  const off = c * (1 - value / 100);
+  const off = c * (1 - v / 100);
   return (
     <div className="relative flex h-[72px] w-[72px] shrink-0 items-center justify-center">
       <svg width="72" height="72" className="-rotate-90">
@@ -186,7 +187,7 @@ function RiskGauge({ value }: { value: number }) {
       </svg>
       <div className="absolute flex flex-col items-center">
         <span className="text-lg font-bold tabular-nums" style={{ color }}>
-          {Math.round(value)}
+          {Math.round(v)}
         </span>
         <span className="mono text-[8px] uppercase tracking-wider text-[var(--fg-dim)]">risk</span>
       </div>

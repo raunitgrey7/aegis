@@ -104,8 +104,8 @@ export function Chip({
 
 /* ---- Risk meter --------------------------------------------------------- */
 export function RiskMeter({ value, width = 120 }: { value: number; width?: number }) {
-  const color =
-    value >= 85 ? "#ef4444" : value >= 65 ? "#f97316" : value >= 40 ? "#eab308" : "#3b82f6";
+  const v = Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0;
+  const color = v >= 85 ? "#ef4444" : v >= 65 ? "#f97316" : v >= 40 ? "#eab308" : "#3b82f6";
   return (
     <div className="flex items-center gap-2">
       <div
@@ -114,12 +114,43 @@ export function RiskMeter({ value, width = 120 }: { value: number; width?: numbe
       >
         <div
           className="h-full rounded-full transition-all"
-          style={{ width: `${value}%`, background: color, boxShadow: `0 0 8px ${color}66` }}
+          style={{ width: `${v}%`, background: color, boxShadow: `0 0 8px ${color}66` }}
         />
       </div>
       <span className="mono w-9 text-right text-xs font-semibold" style={{ color }}>
-        {Math.round(value)}
+        {Math.round(v)}
       </span>
+    </div>
+  );
+}
+
+/* ---- Live badge (auto-refresh indicator) -------------------------------- */
+export function LiveBadge({
+  updatedAt,
+  intervalLabel = "30s",
+}: {
+  updatedAt: Date | null;
+  intervalLabel?: string;
+}) {
+  return (
+    <div
+      className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--panel)] px-3 py-2"
+      title={`Auto-refreshes every ${intervalLabel}`}
+    >
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--ok)] opacity-60" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-[var(--ok)]" />
+      </span>
+      <span className="mono text-[10px] uppercase tracking-wider text-[var(--ok)]">live</span>
+      {updatedAt && (
+        <span className="mono text-[10px] text-[var(--fg-dim)]">
+          {updatedAt.toLocaleTimeString("en-GB", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })}
+        </span>
+      )}
     </div>
   );
 }
@@ -170,7 +201,8 @@ export function Empty({ label }: { label: string }) {
 
 /* ---- Confidence pill ---------------------------------------------------- */
 export function Confidence({ value }: { value: number }) {
-  const pct = Math.round(value * 100);
+  const v = Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
+  const pct = Math.round(v * 100);
   return (
     <span className="mono text-xs text-[var(--fg-muted)]">
       <span className="text-[var(--fg-dim)]">conf</span> {pct}%

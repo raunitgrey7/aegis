@@ -1,54 +1,106 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Bug, Globe, Radar, Waypoints } from "lucide-react";
+import { Bug, Globe, Plane, Radar, Waypoints } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
-import type { ThreatMapNode } from "@/lib/types";
+import type { ThreatMapResponse } from "@/lib/types";
 import { riskColor } from "@/lib/theme";
-import { Chip, ErrorState, Loading, Panel } from "@/components/ui";
+import { countryName } from "@/lib/countries";
+import { Chip, ErrorState, LiveBadge, Loading, Panel } from "@/components/ui";
+import { ThreatGlobe } from "@/components/ThreatGlobe";
+
+const REFRESH_MS = 60_000;
 
 export default function ThreatMapPage() {
   const router = useRouter();
-  const [nodes, setNodes] = useState<ThreatMapNode[] | null>(null);
+  const [data, setData] = useState<ThreatMapResponse | null>(null);
   const [error, setError] = useState("");
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await api.threatMap();
+      res.nodes.sort((a, b) => b.risk - a.risk);
+      setData(res);
+      setUpdatedAt(new Date());
+      setError("");
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 401) return;
+      setError(err instanceof Error ? err.message : "Failed to load threat map");
+    }
+  }, []);
 
   useEffect(() => {
     (async () => {
-      try {
-        const res = await api.threatMap();
-        setNodes(res.nodes.sort((a, b) => b.risk - a.risk));
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 401) return;
-        setError(err instanceof Error ? err.message : "Failed to load threat map");
-      }
+      await load();
     })();
-  }, []);
+    timer.current = setInterval(() => {
+      if (document.visibilityState === "visible") load();
+    }, REFRESH_MS);
+    return () => {
+      if (timer.current) clearInterval(timer.current);
+    };
+  }, [load]);
 
   if (error) return <ErrorState message={error} />;
-  if (!nodes) return <Loading label="Loading external threat map…" rows={6} />;
+  if (!data) return <Loading label="Loading external threat map…" rows={6} />;
 
+  const { nodes, origins, hq } = data;
   const malicious = nodes.filter((n) => n.known_malicious);
   const ips = nodes.filter((n) => n.type === "ip");
-  const domains = nodes.filter((n) => n.type === "domain");
 
   return (
     <div className="space-y-5 rise">
-      <div>
-        <h1 className="text-xl font-bold tracking-tight text-[var(--fg)]">Threat Map</h1>
-        <p className="mt-1 text-sm text-[var(--fg-dim)]">
-          External destinations touched by incident activity, enriched with threat intelligence.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-[var(--fg)]">Threat Map</h1>
+          <p className="mt-1 text-sm text-[var(--fg-dim)]">
+            External infrastructure and login origins touched by incident activity, enriched with
+            threat intelligence.
+          </p>
+        </div>
+        <LiveBadge updatedAt={updatedAt} intervalLabel="60s" />
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat label="External nodes" value={nodes.length} icon={Radar} color="#22d3ee" />
         <Stat label="Known malicious" value={malicious.length} icon={Bug} color="#ef4444" />
         <Stat label="IP addresses" value={ips.length} icon={Globe} color="#f97316" />
-        <Stat label="Domains" value={domains.length} icon={Waypoints} color="#fb923c" />
+        <Stat label="Login origins" value={origins.length} icon={Plane} color="#eab308" />
       </div>
 
-      <Panel title="External destinations" subtitle="red = matched threat intelligence · sorted by risk">
+      {/* 3D globe */}
+      <Panel
+        title="Global threat activity"
+        subtitle="live 3D view — arcs are login origins observed in incident evidence; points are feed-attributed infrastructure; drag to rotate, scroll to zoom"
+      >
+        <ThreatGlobe
+          nodes={nodes}
+          origins={origins}
+          hq={hq}
+          onSelectIncident={(id) => router.push(`/incidents/${id}`)}
+        />
+        {origins.length > 0 && (
+          <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-3">
+            <span className="mono text-[10px] uppercase tracking-wider text-[var(--fg-dim)]">
+              Origins:
+            </span>
+            {origins.map((o) => (
+              <Chip key={o.country} color={riskColor(o.max_risk)} title={o.users.join(", ")}>
+                <Plane className="h-3 w-3" />
+                {countryName(o.country)} · {o.incidents}
+              </Chip>
+            ))}
+          </div>
+        )}
+      </Panel>
+
+      <Panel
+        title="External destinations"
+        subtitle="red = matched threat intelligence · sorted by risk · click a card to open its incident"
+      >
         {nodes.length === 0 ? (
           <div className="p-8 text-center text-sm text-[var(--fg-dim)]">
             No external destinations in current incidents.
@@ -66,9 +118,9 @@ export default function ThreatMapPage() {
                 }}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
                     <div
-                      className="flex h-8 w-8 items-center justify-center rounded-lg"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
                       style={{
                         background: n.known_malicious ? "#ef444418" : "#f9731618",
                         color: n.known_malicious ? "#ef4444" : "#f97316",
@@ -80,10 +132,13 @@ export default function ThreatMapPage() {
                         <Globe className="h-4 w-4" />
                       )}
                     </div>
-                    <div>
-                      <div className="mono text-xs font-medium text-[var(--fg)]">{n.value}</div>
+                    <div className="min-w-0">
+                      <div className="mono truncate text-xs font-medium text-[var(--fg)]">
+                        {n.value}
+                      </div>
                       <div className="mono text-[9px] uppercase tracking-wide text-[var(--fg-dim)]">
                         {n.type}
+                        {n.country ? ` · ${countryName(n.country)}` : " · unattributed"}
                       </div>
                     </div>
                   </div>
@@ -102,8 +157,8 @@ export default function ThreatMapPage() {
                   </div>
                 )}
                 <div className="mono mt-2 flex items-center justify-between text-[10px] text-[var(--fg-dim)]">
-                  <span>{n.hosts.slice(0, 2).join(", ")}</span>
-                  <span className="text-[var(--accent)]">{n.incident} →</span>
+                  <span className="truncate">{n.hosts.slice(0, 2).join(", ")}</span>
+                  <span className="shrink-0 text-[var(--accent)]">{n.incident} →</span>
                 </div>
               </button>
             ))}

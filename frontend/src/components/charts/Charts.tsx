@@ -41,7 +41,7 @@ function TipBox({
 }
 
 export function SeverityDonut({ data }: { data: Record<string, number> }) {
-  const rows = Object.entries(data)
+  const rows = Object.entries(data ?? {})
     .filter(([, v]) => v > 0)
     .map(([k, v]) => ({ name: k, label: k, value: v, color: SEVERITY_COLOR[k] ?? "#64748b" }));
   const total = rows.reduce((a, r) => a + r.value, 0);
@@ -86,7 +86,7 @@ export function SeverityDonut({ data }: { data: Record<string, number> }) {
 }
 
 export function PhaseBar({ data }: { data: { phase: string; label: string; count: number }[] }) {
-  if (!data.length) return <EmptyChart />;
+  if (!data?.length) return <EmptyChart />;
   return (
     <div className="h-[240px]">
       <ResponsiveContainer width="100%" height="100%">
@@ -117,7 +117,7 @@ export function TacticCoverage({
 }: {
   data: { tactic: string; label: string; count: number }[];
 }) {
-  const rows = data.filter((d) => d.count > 0);
+  const rows = (data ?? []).filter((d) => d.count > 0);
   if (!rows.length) return <EmptyChart />;
   const max = Math.max(...rows.map((d) => d.count));
   return (

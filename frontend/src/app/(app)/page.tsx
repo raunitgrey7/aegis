@@ -16,7 +16,7 @@ import {
 import { api, ApiError, getRole } from "@/lib/api";
 import type { Overview } from "@/lib/types";
 import { fmtNum, riskColor, severityColor, threatLevelColor } from "@/lib/theme";
-import { Chip, ErrorState, Loading, Panel, RiskMeter, SeverityBadge } from "@/components/ui";
+import { Chip, ErrorState, LiveBadge, Loading, Panel, RiskMeter, SeverityBadge } from "@/components/ui";
 import { PhaseBar, SeverityDonut, TacticCoverage } from "@/components/charts/Charts";
 
 const SCENARIOS = [
@@ -36,11 +36,13 @@ export default function OverviewPage() {
   const [error, setError] = useState("");
   const [simulating, setSimulating] = useState(false);
   const [role, setRole] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
 
   const load = useCallback(async () => {
     try {
       const ov = await api.overview();
       setData(ov);
+      setUpdatedAt(new Date());
       setError("");
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) return;
@@ -51,6 +53,10 @@ export default function OverviewPage() {
   useEffect(() => {
     setRole(getRole());
     load();
+    const t = setInterval(() => {
+      if (document.visibilityState === "visible") load();
+    }, 30_000);
+    return () => clearInterval(t);
   }, [load]);
 
   async function simulate(sid: string) {
@@ -86,6 +92,7 @@ export default function OverviewPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <LiveBadge updatedAt={updatedAt} intervalLabel="30s" />
           {role === "admin" && (
             <div className="relative">
               <select

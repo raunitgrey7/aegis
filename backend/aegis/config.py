@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     max_events_per_batch: int = 5000
     rate_limit_per_minute: int = 600
     default_tenant: str = "default"
+    home_country: str = "IN"  # ISO-3166 alpha-2 of the monitored estate (threat-map HQ)
 
     # --- detection ---
     rules_dir: Path = PACKAGE_DIR / "rules"

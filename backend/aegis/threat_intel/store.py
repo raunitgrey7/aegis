@@ -34,6 +34,7 @@ class IOC:
     first_seen: str | None = None
     tags: tuple[str, ...] = ()
     reference: str | None = None
+    country: str | None = None  # ISO-3166 alpha-2, when the feed attributes the indicator
 
 
 @dataclass

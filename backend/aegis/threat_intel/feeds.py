@@ -163,6 +163,7 @@ def _parse_local_json(path: Path) -> list[IOC]:
                 first_seen=e.get("first_seen"),
                 tags=tuple(e.get("tags", ())),
                 reference=e.get("reference"),
+                country=e.get("country"),
             )
         )
     return out

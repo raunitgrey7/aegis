@@ -105,3 +105,18 @@ def test_jwt_roundtrip():
     back = decode_token(create_token(u))
     assert back.username == "x" and back.role == "analyst"
     assert back.level == int(Role.ANALYST)
+
+
+def test_threat_map_geo_contract(client):
+    """v2.1: threat map carries per-node country, per-country origins and the estate HQ."""
+    tok = _token(client, "viewer", "viewer")
+    r = client.get("/api/graph/threat-map", headers={"Authorization": f"Bearer {tok}"})
+    assert r.status_code == 200
+    body = r.json()
+    assert isinstance(body["nodes"], list)
+    assert body["hq"]["country"]
+    assert isinstance(body["origins"], list)
+    for n in body["nodes"]:
+        assert "country" in n and "known_malicious" in n and "risk" in n
+    for o in body["origins"]:
+        assert o["country"] and o["incidents"] >= 1 and "max_risk" in o

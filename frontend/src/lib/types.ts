@@ -262,7 +262,21 @@ export interface ThreatMapNode {
   risk: number;
   known_malicious: boolean;
   threat: string | null;
+  country: string | null;
   hosts: string[];
+}
+
+export interface ThreatOrigin {
+  country: string;
+  incidents: number;
+  max_risk: number;
+  users: string[];
+}
+
+export interface ThreatMapResponse {
+  nodes: ThreatMapNode[];
+  origins: ThreatOrigin[];
+  hq: { country: string };
 }
 
 export interface RuleInfo {
