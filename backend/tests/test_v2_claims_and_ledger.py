@@ -142,7 +142,6 @@ def test_normalizer_maps_wfp_and_scriptblock():
 
 
 def test_cred003_fires_on_lsass_access(platform):
-    from datetime import UTC, datetime
 
     from aegis.ingestion.normalizer import normalize
 

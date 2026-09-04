@@ -1,0 +1,112 @@
+# v2.2: rules added after auditing Aegis against real MITRE ATT&CK Evals APT29 telemetry.
+# Each targets a technique the real dataset exercised that v2/v2.1 could not yet see.
+rules:
+  - id: INJ-001
+    title: Process injection via CreateRemoteThread
+    description: >-
+      A process created a remote thread in another process (Sysmon EventID 8). Injection into lsass.exe,
+      or from a script host / LOLBin, is a hallmark of in-memory credential theft and implant loading.
+    kind: match
+    severity: high
+    score: 55
+    techniques: [T1055, T1055.002]
+    phase: defense_evasion
+    group_by: [host]
+    where:
+      event_type: process_access
+      action: remote_thread
+      any_of:
+        - tags: { contains: lsass_inject }
+        - process_name: { in: [powershell.exe, pwsh.exe, rundll32.exe, regsvr32.exe, mshta.exe, wscript.exe, cscript.exe, cmd.exe, wmic.exe, msbuild.exe, installutil.exe, cscript.exe] }
+    confidence: 0.85
+
+  - id: CRED-004
+    title: LSA secret / directory replication access (credential access)
+    description: >-
+      Access to an LSA SecretObject or a directory-service replication object (Windows Security
+      EventID 4662). This covers LSA-secret theft and, when the replication property set is requested,
+      DCSync-style credential extraction from a domain controller.
+    kind: match
+    severity: high
+    score: 55
+    techniques: [T1003.003, T1003.004, T1003.006]
+    phase: credential_access
+    group_by: [host]
+    where:
+      event_type: security_alert
+      action: directory_object_access
+      any_of:
+        - ObjectType: { in: [SecretObject] }
+        - Properties: { regex: "(?i)1131f6a[ad]-9c07-11d1-f79f-00c04fc2dcd2|89e95b76-444d-4c62-991a-0facbeda640c|DS-Replication-Get-Changes" }
+    confidence: 0.8
+
+  - id: DEFEV-004
+    title: Windows Security event log cleared
+    description: The Windows Security audit log was cleared (EventID 1102), a direct anti-forensics action.
+    kind: match
+    severity: high
+    score: 55
+    techniques: [T1070.001]
+    phase: defense_evasion
+    group_by: [host]
+    where:
+      event_type: security_alert
+      action: audit_log_cleared
+    confidence: 0.95
+
+  - id: PERS-006
+    title: Scheduled task created
+    description: >-
+      A scheduled task was registered (EventID 4698 / schtasks). Alone this is common; inside an
+      incident it is a classic persistence and execution mechanism, so it is scored to corroborate.
+    kind: match
+    severity: medium
+    score: 35
+    techniques: [T1053.005]
+    phase: persistence
+    group_by: [host]
+    where:
+      event_type: scheduled_task
+      action: created
+    cooldown_seconds: 300
+    confidence: 0.7
+
+  - id: DISC-002
+    title: File and process discovery
+    description: >-
+      Enumeration of files, directories, running processes and services (dir/tree/Get-ChildItem,
+      tasklist/Get-Process, Get-Service, net view). Individually benign, but a burst maps to the
+      discovery tactic and adds context to an intrusion.
+    kind: threshold
+    severity: low
+    score: 25
+    techniques: [T1083, T1057, T1082, T1518]
+    phase: discovery
+    group_by: [host]
+    window_seconds: 300
+    distinct: command_line
+    count_gte: 4
+    where:
+      event_type: process_start
+      any_of:
+        - process_name: { in: [tasklist.exe, findstr.exe, tree.com, where.exe, fsutil.exe, cmdkey.exe] }
+        - command_line: { regex: "(?i)(get-childitem|gci\\s|dir\\s+/|tree\\s+|get-process\\b|get-service\\b|tasklist|cmdkey\\s+/list|get-hotfix|win32_product|get-package)" }
+        - command_line: { regex: "(?i)^(cmd(\\.exe)?\\s+/c\\s+(dir|type|findstr|where|whoami|set)\\b)" }
+    cooldown_seconds: 1800
+    confidence: 0.8
+
+  - id: CRED-005
+    title: Access to stored credential files
+    description: Reads of files known to hold secrets (unattend.xml, KeePass, browser stores, cloud CLI tokens, SSH/GPG keys).
+    kind: match
+    severity: medium
+    score: 40
+    techniques: [T1552.001]
+    phase: credential_access
+    group_by: [host]
+    where:
+      event_type: { in: [file_read, file_create, process_start] }
+      any_of:
+        - file_path: { regex: "(?i)(unattend\\.xml|sysprep\\.inf|\\.kdbx$|\\\\login data$|\\\\cookies$|\\.aws\\\\credentials|\\.azure\\\\|\\.kube\\\\config|id_rsa$|id_ed25519$|\\.gnupg|\\.ssh\\\\|vnc\\.ini|\\.rdp$)" }
+        - command_line: { regex: "(?i)(findstr\\s+.*(password|passwd|pwd)|select-string\\s+.*password|reg\\s+query.*(password|winlogon.*defaultpassword)|dir\\s+.*\\*(password|cred)\\*)" }
+    confidence: 0.75

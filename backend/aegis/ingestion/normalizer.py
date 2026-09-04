@@ -27,10 +27,12 @@ WIN_EVENT_MAP: dict[int, tuple[EventType, str]] = {
     4756: (EventType.GROUP_CHANGE, "member_added"),
     4698: (EventType.SCHEDULED_TASK, "created"),
     7045: (EventType.SERVICE_STARTED, "installed"),
-    1102: (EventType.SYSTEM_LOG, "audit_log_cleared"),
+    1102: (EventType.SECURITY_ALERT, "audit_log_cleared"),  # v2.2: make matchable by a rule
+    4662: (EventType.SECURITY_ALERT, "directory_object_access"),  # v2.2: LSA secrets / DCSync
     # Sysmon
     1: (EventType.PROCESS_START, "start"),
     3: (EventType.NETWORK_CONNECTION, "connect"),
+    8: (EventType.PROCESS_ACCESS, "remote_thread"),        # v2.2: CreateRemoteThread (process injection)
     10: (EventType.PROCESS_ACCESS, "process_access"),      # v2.1: LSASS access / cred dumping signal
     11: (EventType.FILE_CREATE, "create"),
     12: (EventType.REGISTRY_CHANGE, "key_change"),         # v2.1: registry key create/delete (persistence)
@@ -100,10 +102,13 @@ def _windows(rec: dict[str, Any], tenant: str) -> SecurityEvent:
     )
     dst_ip = data.get("DestinationIp") or data.get("DestAddress")
     tags: list[str] = []
-    if eid == 10 and (data.get("TargetImage") or "").lower().endswith("lsass.exe"):
+    target_lower = (data.get("TargetImage") or "").lower()
+    if eid == 10 and target_lower.endswith("lsass.exe"):
         # surface the credential-theft intent so a rule can match on it
         mask = str(data.get("GrantedAccess") or "").lower()
         tags = ["lsass_access"] + (["suspicious_access"] if mask in LSASS_ACCESS_MASKS else [])
+    if eid == 8:  # CreateRemoteThread -- process injection (v2.2)
+        tags = ["remote_thread"] + (["lsass_inject"] if target_lower.endswith("lsass.exe") else [])
 
     return SecurityEvent(
         tenant_id=tenant,

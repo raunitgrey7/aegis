@@ -143,7 +143,7 @@ rules:
     kind: threshold
     severity: medium
     score: 35
-    techniques: [T1087.002, T1082, T1016, T1018, T1069.002]
+    techniques: [T1087.002, T1082, T1016, T1018, T1069.002, T1083, T1057]
     phase: discovery
     group_by: [host]
     window_seconds: 300
