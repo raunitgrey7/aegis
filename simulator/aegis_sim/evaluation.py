@@ -75,6 +75,9 @@ class EvalReport:
     mean_latency_ms: float = 0.0
     p95_latency_ms: float = 0.0
     events_per_second: float = 0.0
+    false_incidents_per_million_events: float = 0.0
+    projected_false_incidents_per_day: float = 0.0
+    benign_events_processed: int = 0
     by_scenario: dict[str, dict] = field(default_factory=dict)
     per_run: list[dict] = field(default_factory=list)
     confusion: dict[str, int] = field(default_factory=dict)
@@ -299,7 +302,17 @@ def _aggregate(evals, seed, n_attack, n_benign, baseline_events, latencies, tp, 
     lat = np.asarray(latencies)
     elapsed_s = float(lat.sum()) / 1000.0
 
-    return EvalReport(
+    # --- base-rate-honest false-positive accounting (answers "2% is meaningless at scale") -------
+    # An incident, not an event, is what reaches an analyst. Measure false *incidents* against the true
+    # event volume the platform processed, projected to a per-million-events and per-analyst-day figure.
+    false_incidents = fp
+    benign_events = total_events - sum(e.evidence_expected for e in evals if e.detected)  # ~all events are benign
+    fp_per_million = round(false_incidents / max(benign_events, 1) * 1_000_000, 2)
+    # a mid-size enterprise emits on the order of 50M security events/day; project the false-incident load
+    ENTERPRISE_EVENTS_PER_DAY = 50_000_000
+    false_incidents_per_day = round(fp_per_million * ENTERPRISE_EVENTS_PER_DAY / 1_000_000, 1)
+
+    report = EvalReport(
         seed=seed, n_attack=n_attack, n_benign=n_benign, baseline_events=baseline_events,
         detection_rate=_pct(det_rate), false_positive_rate=_pct(fpr), precision=_pct(precision),
         recall=_pct(recall), f1=_pct(f1), phase_reconstruction=_pct(phase),
@@ -310,6 +323,10 @@ def _aggregate(evals, seed, n_attack, n_benign, baseline_events, latencies, tp, 
         confusion={"tp": tp, "fp": fp, "tn": tn, "fn": fn},
         generated_at=datetime.now(UTC).isoformat(), total_events=total_events,
     )
+    report.false_incidents_per_million_events = fp_per_million
+    report.projected_false_incidents_per_day = false_incidents_per_day
+    report.benign_events_processed = benign_events
+    return report
 
 
 def _by_scenario(evals: list[ScenarioEval]) -> dict[str, dict]:
@@ -389,6 +406,21 @@ def render_markdown(r: EvalReport) -> str:
         f"Confusion matrix — TP {r.confusion['tp']}, FP {r.confusion['fp']}, "
         f"TN {r.confusion['tn']}, FN {r.confusion['fn']}.",
         "",
+        "## Base-rate-honest false-positive load",
+        "",
+        "A percentage FPR on a balanced set is cosmetic. What reaches an analyst is a false *incident*, "
+        "and what matters is how many arrive against real event volume:",
+        "",
+        "| Metric | Result |",
+        "|--------|-------:|",
+        f"| Benign events processed | {r.benign_events_processed:,} |",
+        f"| False incidents raised | {r.confusion['fp']} |",
+        f"| **False incidents per million events** | **{r.false_incidents_per_million_events}** |",
+        f"| Projected false incidents/day @ 50M events/day | {r.projected_false_incidents_per_day} |",
+        "",
+        "> This is still on synthetic benign traffic. The projection assumes the synthetic base rate holds "
+        "on real telemetry, which is exactly the assumption an external evaluation has to test.",
+        "",
         "## Per-scenario breakdown",
         "",
         "| ID | Scenario | Runs | Det. rate | Chain recon. | Technique recall | Evidence cov. | Mean risk |",
@@ -399,7 +431,20 @@ def render_markdown(r: EvalReport) -> str:
             f"| {sid} | {s['name']} | {s['runs']} | {s['detection_rate']}% | {s['phase_reconstruction']}% "
             f"| {s['technique_recall']}% | {s['evidence_coverage']}% | {s['mean_risk']} |"
         )
-    lines += ["", "_Detection is fully deterministic; the LLM is not involved in any number above._", ""]
+    lines += [
+        "",
+        "_Detection is fully deterministic; the LLM is not involved in any number above._",
+        "",
+        "## What this benchmark is — and is not",
+        "",
+        "This is a **reproducibility / regression harness**: the same author wrote the attack scenarios, "
+        "the benign look-alikes, and the detection rules. A high score here proves the pipeline behaves as "
+        "designed and stays stable across changes. It is **not** an independent detection-efficacy result — "
+        "it says nothing about attacks the author did not script. Credible detection numbers require "
+        "external telemetry the author did not generate and a red team the author does not control; that is "
+        "the `aegis_sim.external` evaluation and the design-partner phase, not this file.",
+        "",
+    ]
     return "\n".join(lines)
 
 

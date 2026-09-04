@@ -54,18 +54,27 @@ def _ts(v: Any) -> datetime:
 
 
 def _windows(rec: dict[str, Any], tenant: str) -> SecurityEvent:
-    eid = int(rec.get("EventID") or rec.get("event_id_win") or rec.get("id") or 0)
+    try:
+        eid = int(rec.get("EventID") or rec.get("event_id_win") or rec.get("id") or 0)
+    except (TypeError, ValueError):
+        eid = 0
     et, action = WIN_EVENT_MAP.get(eid, (EventType.SYSTEM_LOG, f"win_{eid}"))
     data = rec.get("EventData") or rec
     logon_type = data.get("LogonType")
+    # Accept the field names used by Winlogbeat/NXLog exports and the OTRF "Mordor" security datasets
+    # (flat records: Hostname / @timestamp / EventTime / UtcTime) as well as raw Windows XML-to-JSON shapes.
+    ts_raw = (
+        rec.get("TimeCreated") or rec.get("timestamp") or rec.get("@timestamp") or rec.get("EventTime")
+        or data.get("UtcTime") or rec.get("SystemTime")
+    )
     return SecurityEvent(
         tenant_id=tenant,
-        timestamp=_ts(rec.get("TimeCreated") or rec.get("timestamp")),
+        timestamp=_ts(ts_raw),
         source=SourceType.WINDOWS,
         event_type=et,
         action=action,
         outcome="success" if eid in (4624, 4688, 4720) else ("failure" if eid == 4625 else None),
-        host=rec.get("Computer") or rec.get("host"),
+        host=rec.get("Computer") or rec.get("Hostname") or rec.get("host") or rec.get("hostname"),
         user=data.get("TargetUserName") or data.get("SubjectUserName") or data.get("User"),
         session_id=str(data.get("TargetLogonId") or data.get("LogonId") or "") or None,
         process_name=_basename(data.get("NewProcessName") or data.get("Image") or data.get("ProcessName")),

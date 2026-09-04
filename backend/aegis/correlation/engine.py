@@ -11,6 +11,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import datetime, timedelta
 
+from aegis.correlation.ledger import RiskLedger
 from aegis.graph.attack_graph import build_attack_graph
 from aegis.graph.knowledge_graph import SecurityKnowledgeGraph, node_id
 from aegis.mitre.catalog import MitreCatalog
@@ -46,12 +47,19 @@ class CorrelationEngine:
         catalog: MitreCatalog,
         window_seconds: int = 3600,
         min_score: float = 20.0,
+        ledger: RiskLedger | None = None,
+        graph_merge: bool = True,
+        graph_merge_days: float = 14.0,
     ):
         self.kg = kg
         self.catalog = catalog
         self.window = timedelta(seconds=window_seconds)
         self.min_score = min_score
+        self.ledger = ledger
+        self.graph_merge = graph_merge
+        self.graph_merge_window = timedelta(days=graph_merge_days)
         self._seq = 0
+        self.stats: dict[str, int] = defaultdict(int)
 
     # ------------------------------------------------------------------ clustering
     def cluster(self, detections: list[Detection]) -> list[list[Detection]]:
@@ -71,6 +79,33 @@ class CorrelationEngine:
                 # prune
                 horizon = d.timestamp - self.window
                 last_seen[key] = [(ts, j) for ts, j in last_seen[key] if ts >= horizon]
+        # --- second pass: graph-path merge -------------------------------------------------------
+        # Two clusters on different hosts are the same intrusion if the knowledge graph shows one host
+        # reaching the other (authenticated_to / connected_to an IP the other host owns). This is
+        # correlation by *topology*, not by time: it links a beachhead to the server it pivoted to even
+        # when the pivot happened days later.
+        if self.graph_merge and len(dets) > 1:
+            roots = {i: uf.find(i) for i in range(len(dets))}
+            host_of: dict[str, set[int]] = defaultdict(set)  # host -> cluster roots touching it
+            root_time: dict[int, tuple[datetime, datetime]] = {}
+            for i, d in enumerate(dets):
+                r = roots[i]
+                lo, hi = root_time.get(r, (d.timestamp, d.timestamp))
+                root_time[r] = (min(lo, d.timestamp), max(hi, d.timestamp))
+                h = d.entities.get("host")
+                if h:
+                    host_of[h.upper()].add(r)
+            for host, rset in list(host_of.items()):
+                for nb in self.kg.lateral_neighbors(host):
+                    for ra in rset:
+                        for rb in host_of.get(nb, ()):
+                            if ra == rb:
+                                continue
+                            (a0, a1), (b0, b1) = root_time[ra], root_time[rb]
+                            gap = max(a0, b0) - min(a1, b1)
+                            if gap <= self.graph_merge_window:
+                                uf.union(ra, rb)
+                                self.stats["graph_merges"] += 1
         groups: dict[int, list[Detection]] = defaultdict(list)
         for i, d in enumerate(dets):
             groups[uf.find(i)].append(d)
@@ -190,12 +225,65 @@ class CorrelationEngine:
 
     def correlate(self, detections: list[Detection], events_by_id: dict[str, SecurityEvent]) -> list[Incident]:
         incidents: list[Incident] = []
+        admitted: set[str] = set()
         for group in self.cluster(detections):
             inc = self.build_incident(group, events_by_id)
             if inc is not None:
                 incidents.append(inc)
+                admitted.update(d.detection_id for d in inc.detections)
+        incidents.extend(self._slow_burn_incidents(detections, events_by_id, admitted))
         incidents.sort(key=lambda i: (-i.risk_score, i.first_event_at))
         return incidents
+
+    # ------------------------------------------------------------------ slow-burn (ledger) incidents
+    def _slow_burn_incidents(
+        self, detections: list[Detection], events_by_id: dict[str, SecurityEvent], admitted: set[str]
+    ) -> list[Incident]:
+        """Low-and-slow campaigns: signals too weak/spread-out for the window correlator, but whose
+        decayed risk on one identity or host has crossed the ledger threshold."""
+        if self.ledger is None or not detections:
+            return []
+        by_id = {d.detection_id: d for d in detections}
+        now = max(d.timestamp for d in detections)
+        out: list[Incident] = []
+        for cand in self.ledger.slow_burn_candidates(now):
+            dets = [by_id[i] for i in cand["detection_ids"] if i in by_id]
+            fresh = [d for d in dets if d.detection_id not in admitted]
+            # need at least two contributions that the window correlator did NOT already explain
+            if len(fresh) < self.ledger.min_deposits:
+                continue
+            inc = self._build_unfiltered(dets, events_by_id)
+            if inc is None:
+                continue
+            entity = cand["entity"]
+            inc.title = f"Low-and-slow activity on {entity.split(':', 1)[1]} ({cand['span_hours']:.0f}h, {len(dets)} signals)"
+            inc.tags = sorted(set(inc.tags) | {"slow_burn", "ledger"})
+            inc.score_breakdown["ledger_balance"] = cand["balance"]
+            inc.score_breakdown["ledger_span_hours"] = cand["span_hours"]
+            # the ledger balance is the evidence of intent here; let it lift the score
+            inc.risk_score = round(min(100.0, max(inc.risk_score, min(95.0, cand["balance"]))), 1)
+            if inc.risk_score >= 85:
+                inc.severity = Severity.CRITICAL
+            elif inc.risk_score >= 65:
+                inc.severity = Severity.HIGH
+            elif inc.risk_score >= 40:
+                inc.severity = Severity.MEDIUM
+            self.ledger.mark_emitted(entity, cand)
+            self.stats["slow_burn_incidents"] += 1
+            out.append(inc)
+            admitted.update(d.detection_id for d in dets)
+        return out
+
+    def _build_unfiltered(self, dets: list[Detection], events_by_id: dict[str, SecurityEvent]) -> Incident | None:
+        """build_incident without the admission policy (the ledger already justified admission)."""
+        saved = self.min_score
+        self.min_score = -1.0
+        try:
+            # temporarily relax the lone-anomaly rule too by padding kinds check: build_incident only
+            # rejects a *single* anomaly; ledger candidates always have >=2 deposits.
+            return self.build_incident(dets, events_by_id)
+        finally:
+            self.min_score = saved
 
 
 def _is_private(ip: str) -> bool:

@@ -65,7 +65,7 @@ rules:
     description: Executable launched from Temp / Downloads / AppData\\Local\\Temp / Public folders.
     kind: match
     severity: medium
-    score: 30
+    score: 25
     techniques: [T1204.002]
     phase: execution
     group_by: [host]

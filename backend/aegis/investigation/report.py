@@ -43,4 +43,15 @@ class InvestigationReport(BaseModel):
     agent_findings: list[AgentFinding] = Field(default_factory=list)
     recommended_actions: list[str] = Field(default_factory=list)
     injection_warnings: list[dict] = Field(default_factory=list)
-    grounding: dict = Field(default_factory=dict)
+    grounding: dict = Field(
+        default_factory=dict,
+        description="Reference integrity: do the cited event IDs exist? (Says nothing about meaning.)",
+    )
+    claim_verification: dict = Field(
+        default_factory=dict,
+        description="Semantic check: every entity/technique/phase the narrative asserts vs the deterministic record.",
+    )
+    verification: dict = Field(
+        default_factory=dict,
+        description="Honest summary of what was and was not verified about this narrative.",
+    )

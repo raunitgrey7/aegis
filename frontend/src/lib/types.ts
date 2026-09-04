@@ -201,6 +201,24 @@ export interface Grounding {
   grounded: boolean;
 }
 
+export interface ClaimVerification {
+  method: string;
+  claims: { kind: string; value: string; supported: boolean; note: string }[];
+  total: number;
+  supported: number;
+  unsupported: number;
+  unsupported_claims: { kind: string; value: string; supported: boolean; note: string }[];
+  fidelity: number;
+  verified: boolean;
+}
+
+export interface Verification {
+  reference_integrity: { passed: boolean; cited: number; fabricated: number; label: string; proves: string };
+  semantic_check: { passed: boolean; supported: number; total: number; fidelity: number; label: string; proves: string };
+  not_verified: string;
+  narrative_source: string;
+}
+
 export interface InvestigationReport {
   incident_id: string;
   title: string;
@@ -222,6 +240,8 @@ export interface InvestigationReport {
   recommended_actions: string[];
   injection_warnings: { event_id: string; field: string; value: string }[];
   grounding: Grounding;
+  claim_verification?: ClaimVerification;
+  verification?: Verification;
   latency_ms: number;
 }
 
@@ -231,6 +251,8 @@ export interface CopilotResponse {
   evidence: { event_id: string; time: string; summary: string }[];
   llm_used: boolean;
   grounding: Grounding;
+  claim_verification?: ClaimVerification;
+  verification?: Verification;
 }
 
 export interface ThreatMapNode {

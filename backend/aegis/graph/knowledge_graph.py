@@ -13,6 +13,7 @@ from typing import Any
 
 import networkx as nx
 
+from aegis.detection.conditions import is_private_ip
 from aegis.schemas.events import EventType, SecurityEvent
 from aegis.threat_intel.store import ThreatIntelStore
 
@@ -79,6 +80,11 @@ class SecurityKnowledgeGraph:
         user = self._node("user", e.user, ts=ts) if e.user else None
         et = e.event_type
 
+        # host <-> address identity: lets the correlator walk host -> ip -> other host (lateral paths)
+        if host and e.src_ip and is_private_ip(e.src_ip) and et != EventType.AUTHENTICATION:
+            own = self._node("ip", e.src_ip, ts=ts)
+            self._edge(host, own, "has_ip", e)
+
         if et == EventType.AUTHENTICATION:
             if user and host:
                 rel = "logged_into" if e.action == "login_success" else "failed_login"
@@ -86,6 +92,11 @@ class SecurityKnowledgeGraph:
             if e.src_ip and user:
                 ip = self._node("ip", e.src_ip, ts=ts, country=e.geo_country)
                 self._edge(ip, user, "authenticated_as", e, outcome=e.action)
+                if host and is_private_ip(e.src_ip):
+                    self._edge(host, ip, "has_ip", e)
+            if e.dst_ip and host and e.action == "login_success":
+                target = self._node("ip", e.dst_ip, ts=ts)
+                self._edge(host, target, "authenticated_to", e, privilege=e.privilege)
 
         elif et in (EventType.PROCESS_START, EventType.PROCESS_END) and e.process_name:
             proc = self._node("process", f"{e.host or '?'}/{e.process_name}", ts=ts, name=e.process_name)
@@ -223,6 +234,42 @@ class SecurityKnowledgeGraph:
             if v.startswith("ip:"):
                 ips.add(v.split(":", 1)[1])
         return sorted(ips)
+
+    def lateral_neighbors(self, host: str) -> set[str]:
+        """Other hosts this one is topologically linked to — the substrate for graph-path correlation.
+
+        Two hosts are neighbours when one reached an internal IP that the other is also associated with
+        (either the other host's processes connected to it, or a user authenticated from it to that host).
+        This links a beachhead to the host it pivoted to even when the two events are days apart and never
+        fell in the same time window. It is a best-effort topology query over the relations the graph
+        actually records; when the pivot leaves no shared internal-IP trail it returns nothing rather
+        than guessing.
+        """
+        hid = node_id("host", host)
+        if hid not in self.g:
+            return set()
+
+        def internal_ips_of(h_node: str) -> set[str]:
+            ips: set[str] = set()
+            for _, proc, _d in self.g.out_edges(h_node, data=True):
+                if proc.startswith("process:"):
+                    for _, v, d2 in self.g.out_edges(proc, data=True):
+                        if v.startswith("ip:") and d2.get("relation") == "connected_to":
+                            ips.add(v)
+                elif proc.startswith("ip:") and _d.get("relation") == "connected_to":
+                    ips.add(proc)
+            return ips
+
+        mine = internal_ips_of(hid)
+        if not mine:
+            return set()
+        neighbors: set[str] = set()
+        for other, data in self.g.nodes(data=True):
+            if data.get("kind") != "host" or other == hid:
+                continue
+            if internal_ips_of(other) & mine:
+                neighbors.add(other.split(":", 1)[1])
+        return neighbors
 
     def stats(self) -> dict:
         kinds: dict[str, int] = defaultdict(int)

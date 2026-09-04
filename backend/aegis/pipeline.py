@@ -18,6 +18,7 @@ from pathlib import Path
 
 from aegis.config import Settings, get_settings
 from aegis.correlation.engine import CorrelationEngine
+from aegis.correlation.ledger import RiskLedger
 from aegis.detection.engine import DetectionEngine
 from aegis.graph.knowledge_graph import SecurityKnowledgeGraph
 from aegis.mitre.catalog import MitreCatalog
@@ -53,11 +54,17 @@ class Platform:
         self.catalog = MitreCatalog.load(self.settings.mitre_catalog)
         self.detector = DetectionEngine(rules_dir or self.settings.rules_dir, self.ti_store, enable_anomaly=enable_anomaly)
         self.kg = SecurityKnowledgeGraph(self.ti_store)
+        self.ledger = RiskLedger(
+            half_life_hours=self.settings.ledger_half_life_hours,
+            threshold=self.settings.ledger_threshold,
+        ) if self.settings.ledger_enabled else None
         self.correlator = CorrelationEngine(
             self.kg,
             self.catalog,
             window_seconds=self.settings.correlation_window_seconds,
             min_score=self.settings.incident_min_score,
+            ledger=self.ledger,
+            graph_merge=self.settings.graph_merge_enabled,
         )
         self.events: OrderedDict[str, SecurityEvent] = OrderedDict()
         self.max_events = max_events
@@ -91,6 +98,9 @@ class Platform:
                 self.detections.extend(dets)
                 self.recent_detections.extend(dets)
                 self.stats.detections += len(dets)
+                if self.ledger is not None:
+                    for d in dets:
+                        self.ledger.observe(d)
                 self._dirty = True
             self.stats.events_ingested += 1
             self.stats.last_event_at = event.timestamp
@@ -111,18 +121,32 @@ class Platform:
                 return list(self.incidents.values())
             self.correlator._seq = 0
             incidents = self.correlator.correlate(self.detections, self.events)
-            # preserve analyst status/summary across re-correlation by matching on detection overlap
+            # Preserve analyst status/summary across re-correlation by matching on detection overlap.
+            # Every incident the correlator produced must survive with a UNIQUE id — an old id is only
+            # reused when it is not already claimed this pass, so two new incidents (e.g. a window
+            # incident and a ledger slow-burn incident that share a detection) can never collapse into one.
             new: dict[str, Incident] = {}
             old_by_det = {}
             for inc in self.incidents.values():
                 for d in inc.detections:
-                    old_by_det[d.detection_id] = inc
+                    old_by_det.setdefault(d.detection_id, inc)
             for inc in incidents:
-                prev = next((old_by_det[d.detection_id] for d in inc.detections if d.detection_id in old_by_det), None)
+                prev = None
+                for d in inc.detections:
+                    cand = old_by_det.get(d.detection_id)
+                    if cand is not None and cand.incident_id not in new:
+                        prev = cand
+                        break
                 if prev is not None:
                     inc.status = prev.status
                     inc.summary = prev.summary
                     inc.incident_id = prev.incident_id
+                if inc.incident_id in new:  # never overwrite an already-placed incident
+                    suffix = 1
+                    base_id = inc.incident_id
+                    while f"{base_id}-{suffix}" in new:
+                        suffix += 1
+                    inc.incident_id = f"{base_id}-{suffix}"
                 new[inc.incident_id] = inc
             self.incidents = new
             self.stats.incidents = len(new)

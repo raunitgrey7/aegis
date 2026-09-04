@@ -1,24 +1,28 @@
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
+Copyright © 2026 Raunit Thakur. All rights reserved.
 
-   Copyright 2026 Raunit Thakur
+AEGIS — AI-Powered Cybersecurity Investigation & Threat-Intelligence Platform
 
-   Licensed under the Apache License, Version 2.0 (the "License");
-   you may not use this file except in compliance with the License.
-   You may obtain a copy of the License at
+This software and its associated documentation, source code, models, datasets,
+designs, and all other materials in this repository (collectively, the "Work")
+are the exclusive property of Raunit Thakur (the "Author").
 
-       http://www.apache.org/licenses/LICENSE-2.0
+ALL RIGHTS RESERVED.
 
-   Unless required by applicable law or agreed to in writing, software
-   distributed under the License is distributed on an "AS IS" BASIS,
-   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-   See the License for the specific language governing permissions and
-   limitations under the License.
+No part of the Work may be reproduced, distributed, modified, published,
+sublicensed, sold, or used to create derivative works, in whole or in part, by
+any means, without the prior express written permission of the Author. Viewing
+the Work for personal evaluation and reference is permitted; no other rights are
+granted, whether by implication, estoppel, or otherwise.
 
-   ----------------------------------------------------------------------
+The Work is provided "AS IS", without warranty of any kind, express or implied,
+including but not limited to the warranties of merchantability, fitness for a
+particular purpose, and non-infringement. In no event shall the Author be liable
+for any claim, damages, or other liability arising from, out of, or in connection
+with the Work or its use.
 
-   The full Apache License 2.0 text is available at the URL above. This
-   project is provided for research and educational purposes. The attack
-   simulator generates SYNTHETIC telemetry only; it does not attack, exploit,
-   or interact with any real system.
+The attack simulator generates SYNTHETIC telemetry only; it does not attack,
+exploit, or interact with any real system. Third-party threat-intelligence feeds
+referenced by the Work remain the property of their respective owners and are
+subject to their own terms.
+
+For licensing inquiries, contact the Author.

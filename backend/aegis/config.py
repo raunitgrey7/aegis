@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     mitre_catalog: Path = PACKAGE_DIR / "data" / "mitre" / "techniques.yaml"
     correlation_window_seconds: int = 3600
     incident_min_score: float = 40.0
+    # v2: long-horizon correlation
+    ledger_enabled: bool = True
+    ledger_half_life_hours: float = 96.0  # risk deposits halve every 4 days
+    ledger_threshold: float = 80.0  # decayed balance that admits a slow-burn incident
+    graph_merge_enabled: bool = True  # merge clusters connected by lateral paths in the knowledge graph
 
     # --- AI ---
     ollama_url: str = "http://localhost:11434"

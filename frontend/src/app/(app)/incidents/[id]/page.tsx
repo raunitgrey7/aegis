@@ -479,24 +479,48 @@ function InvestigationTab({ id }: { id: string }) {
 
   return (
     <div className="space-y-4">
-      {/* Grounding + engine banner */}
+      {/* Two-gate verification banner — reference integrity + semantic claim check. No "trust me" badge. */}
       <div className="flex flex-wrap items-center gap-3">
-        <div
-          className="flex items-center gap-2 rounded-lg px-3 py-2"
-          style={{
-            background: report.grounding.grounded ? "#34d39914" : "#f9731614",
-            border: `1px solid ${report.grounding.grounded ? "#34d39944" : "#f9731644"}`,
-          }}
-        >
-          <ShieldCheck className="h-4 w-4" style={{ color: report.grounding.grounded ? "#34d399" : "#f97316" }} />
-          <span className="text-xs font-medium" style={{ color: report.grounding.grounded ? "#34d399" : "#f97316" }}>
-            {report.grounding.grounded ? "Evidence-grounded" : "Grounding warning"}
-          </span>
-          <span className="mono text-[10px] text-[var(--fg-dim)]">
-            {report.grounding.evidence_cited}/{report.grounding.evidence_total} citations verified ·{" "}
-            {report.grounding.fabricated_ids.length} fabricated
-          </span>
-        </div>
+        {(() => {
+          const g = report.grounding;
+          const cv = report.claim_verification;
+          const refOk = g?.grounded ?? true;
+          const semOk = cv?.verified ?? true;
+          return (
+            <>
+              <div
+                className="flex items-center gap-2 rounded-lg px-3 py-2"
+                style={{
+                  background: refOk ? "#34d39914" : "#f9731614",
+                  border: `1px solid ${refOk ? "#34d39944" : "#f9731644"}`,
+                }}
+              >
+                <ShieldCheck className="h-4 w-4" style={{ color: refOk ? "#34d399" : "#f97316" }} />
+                <span className="text-xs font-medium" style={{ color: refOk ? "#34d399" : "#f97316" }}>
+                  Citations resolve to real events
+                </span>
+                <span className="mono text-[10px] text-[var(--fg-dim)]">
+                  {g?.evidence_cited ?? 0} cited · {(g?.fabricated_ids?.length ?? 0)} fabricated
+                </span>
+              </div>
+              <div
+                className="flex items-center gap-2 rounded-lg px-3 py-2"
+                style={{
+                  background: semOk ? "#22d3ee14" : "#f9731614",
+                  border: `1px solid ${semOk ? "#22d3ee44" : "#f9731644"}`,
+                }}
+              >
+                <ShieldCheck className="h-4 w-4" style={{ color: semOk ? "#22d3ee" : "#f97316" }} />
+                <span className="text-xs font-medium" style={{ color: semOk ? "#22d3ee" : "#f97316" }}>
+                  Claims consistent with detections
+                </span>
+                <span className="mono text-[10px] text-[var(--fg-dim)]">
+                  {cv?.supported ?? 0}/{cv?.total ?? 0} entity/technique/phase claims
+                </span>
+              </div>
+            </>
+          );
+        })()}
         <Chip color={report.llm_used ? "#22d3ee" : "#8a99ad"}>
           {report.llm_used ? `LLM: ${report.model}` : "Deterministic synthesizer"}
         </Chip>
@@ -528,6 +552,22 @@ function InvestigationTab({ id }: { id: string }) {
             <p key={i}>{para}</p>
           ))}
         </div>
+        {report.verification?.not_verified && (
+          <p className="mt-3 border-t border-[var(--border)] pt-3 text-xs text-[var(--fg-dim)]">
+            <span className="font-medium text-[var(--fg-muted)]">Not machine-verified:</span>{" "}
+            {report.verification.not_verified}
+          </p>
+        )}
+        {report.claim_verification && report.claim_verification.unsupported > 0 && (
+          <div className="mt-3 rounded-lg border border-[#f9731644] bg-[#f9731610] p-3">
+            <div className="mb-1 text-xs font-medium text-[#f97316]">
+              {report.claim_verification.unsupported} narrative claim(s) not supported by detections — reverted to rule-derived text
+            </div>
+            <div className="mono text-[10px] text-[var(--fg-dim)]">
+              {report.claim_verification.unsupported_claims.map((c) => `${c.kind}:${c.value}`).join(" · ")}
+            </div>
+          </div>
+        )}
       </Panel>
 
       {/* Agent findings */}

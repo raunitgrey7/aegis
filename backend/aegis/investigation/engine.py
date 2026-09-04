@@ -13,6 +13,7 @@ import logging
 from datetime import UTC, datetime
 
 from aegis.investigation.agents import ALL_AGENTS, AgentContext
+from aegis.investigation.claims import verify_claims
 from aegis.investigation.grounding import grounding_score
 from aegis.investigation.report import AgentFinding, EvidenceItem, InvestigationReport
 from aegis.llm.client import LLMClient, LLMUnavailable
@@ -124,18 +125,23 @@ class InvestigationEngine:
             except LLMUnavailable as exc:
                 log.info("LLM unavailable, using deterministic narrative: %s", exc)
 
-        grounding = grounding_score(
-            narrative,
-            [i for f in findings for i in f.evidence_event_ids],
-            valid_ids,
-        )
-        # if the model fabricated evidence, fall back to the trustworthy deterministic narrative
-        if llm_used and not grounding["grounded"]:
-            log.warning("LLM narrative cited fabricated IDs %s; reverting to deterministic", grounding["fabricated_ids"])
+        finding_ids = [i for f in findings for i in f.evidence_event_ids]
+        grounding = grounding_score(narrative, finding_ids, valid_ids)
+        claims = verify_claims(narrative, incident, events)
+        # Two independent gates. Reference integrity: cited IDs must exist. Semantic check: the narrative
+        # may not name entities, techniques or phases the deterministic layer did not observe. Failing
+        # either reverts to the deterministic narrative, which is built only from the detection record.
+        if llm_used and (not grounding["grounded"] or not claims["verified"]):
+            log.warning(
+                "LLM narrative rejected (fabricated ids=%s, unsupported claims=%s); reverting to deterministic",
+                grounding["fabricated_ids"], [c["value"] for c in claims["unsupported_claims"]],
+            )
             narrative = det_narrative
             llm_used = False
-            grounding = grounding_score(narrative, [i for f in findings for i in f.evidence_event_ids], valid_ids)
+            grounding = grounding_score(narrative, finding_ids, valid_ids)
+            claims = verify_claims(narrative, incident, events)
 
+        verification = self._verification_summary(grounding, claims, llm_used)
         actions = self._recommendations(incident)
         summary = narrative.split("\n\n")[0][:600]
 
@@ -160,7 +166,38 @@ class InvestigationEngine:
             recommended_actions=actions,
             injection_warnings=injection,
             grounding=grounding,
+            claim_verification=claims,
+            verification=verification,
         )
+
+    @staticmethod
+    def _verification_summary(grounding: dict, claims: dict, llm_used: bool) -> dict:
+        """Say exactly what was checked — and what was not. No green badge that overclaims."""
+        return {
+            "reference_integrity": {
+                "passed": grounding["grounded"],
+                "cited": grounding["evidence_cited"],
+                "fabricated": len(grounding["fabricated_ids"]),
+                "label": "Citations resolve to real events",
+                "proves": "Every event ID the narrative cites exists in this incident's evidence.",
+            },
+            "semantic_check": {
+                "passed": claims["verified"],
+                "supported": claims["supported"],
+                "total": claims["total"],
+                "fidelity": claims["fidelity"],
+                "label": "Claims consistent with detections",
+                "proves": (
+                    "Every entity, ATT&CK technique and kill-chain phase the narrative asserts was observed "
+                    "by the deterministic layer."
+                ),
+            },
+            "not_verified": (
+                "Causal interpretation (that one event caused another) and analyst-level judgement are not "
+                "machine-verified. Treat the narrative as an evidence-consistent summary, not a verdict."
+            ),
+            "narrative_source": "local LLM" if llm_used else "deterministic synthesizer (rule-derived, no LLM)",
+        }
 
     # ------------------------------------------------------------------ helpers
     def _timeline(self, incident: Incident, events: list[SecurityEvent]) -> list[EvidenceItem]:
@@ -283,14 +320,19 @@ class InvestigationEngine:
                 pass
         cited = [e.event_id for e in relevant]
         grounding = grounding_score(answer, cited, valid_ids)
-        if llm_used and not grounding["grounded"]:
+        claims = verify_claims(answer, incident, events)
+        if llm_used and (not grounding["grounded"] or not claims["verified"]):
             answer, llm_used = det_answer, False
+            grounding = grounding_score(answer, cited, valid_ids)
+            claims = verify_claims(answer, incident, events)
         return {
             "question": question,
             "answer": answer,
             "evidence": [{"event_id": e.event_id, "time": e.timestamp.strftime("%H:%M:%S"), "summary": e.short()} for e in relevant],
             "llm_used": llm_used,
             "grounding": grounding,
+            "claim_verification": claims,
+            "verification": self._verification_summary(grounding, claims, llm_used),
         }
 
     def _copilot_deterministic(self, question: str, incident: Incident, relevant: list[SecurityEvent]) -> str:
